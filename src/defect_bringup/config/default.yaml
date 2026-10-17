@@ -1,0 +1,35 @@
+# 通用参数配置（实现文档 阶段1 · 4.2 配置驱动）
+# 通过配置而非硬编码切换输入源与算法，这是"可替换"的基础。
+
+defect_input_node:
+  ros__parameters:
+    source_type: camera      # image / video / camera
+    source_path: '0'         # 图片/视频路径，或摄像头设备号 / RTSP 地址
+    frame_stride: 1          # 跳帧间隔，实时场景可调大
+    out_topic: image_raw
+    publish_rate: 10.0
+
+defect_pipeline_node:
+  ros__parameters:
+    detector: opencv         # opencv / yolo
+    image_topic: image_raw
+    result_topic: defects
+
+defect_visualize_node:
+  ros__parameters:
+    image_topic: image_raw
+    result_topic: defects
+    out_topic: annotated
+    show_window: true
+
+defect_report_node:
+  ros__parameters:
+    result_topic: defects
+    batch_size: 100
+    output_dir: reports
+
+# 判定规则（阶段5）
+judge:
+  ros__parameters:
+    confidence_threshold: 0.5
+    min_area_px: 50

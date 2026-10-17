@@ -1,0 +1,7 @@
+# 运行时切换检测算法（对应实现文档"算法可替换"的核心能力）
+
+string detector_name      # 目标算法标识，如 opencv / yolov8n
+string config_path        # 可选：算法参数配置文件路径
+---
+bool success
+string message
