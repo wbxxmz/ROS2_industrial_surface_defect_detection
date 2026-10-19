@@ -1,0 +1,5 @@
+# 阶段 1 最小示例配置（非完整 schema；字段名与结构 TBD-阶段 2 前定）
+input:
+  type: image
+detector:
+  type: dummy

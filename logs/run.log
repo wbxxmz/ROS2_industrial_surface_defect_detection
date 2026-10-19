@@ -1,0 +1,26 @@
+2026-10-19 12:29:02,767 [INFO] defect: 已加载配置：/home/yjh/demo_OpenCv_picture/configs/demo.yaml
+2026-10-19 12:29:02,770 [INFO] defect.pipeline: 流水线完成：帧 1×1，检测结果 0 条
+2026-10-19 12:29:02,770 [INFO] defect: 运行完成，共 0 条检测结果
+2026-10-19 12:29:12,107 [INFO] defect: 已加载配置：/home/yjh/demo_OpenCv_picture/configs/demo.yaml
+2026-10-19 12:29:12,108 [INFO] defect.pipeline: 流水线完成：帧 1×1，检测结果 0 条
+2026-10-19 12:29:12,108 [INFO] defect: 运行完成，共 0 条检测结果
+2026-10-19 21:40:34,483 [INFO] defect: 已加载配置：/home/yjh/demo_OpenCv_picture/configs/demo.yaml
+2026-10-19 21:40:34,486 [INFO] defect.pipeline: 流水线完成：帧 1×1，检测结果 0 条
+2026-10-19 21:40:34,486 [INFO] defect: 运行完成，共 0 条检测结果
+2026-10-19 21:40:34,679 [INFO] defect: 已加载配置：/tmp/bad.yaml
+2026-10-19 21:40:35,152 [INFO] defect: 已加载配置：/home/yjh/demo_OpenCv_picture/configs/demo.yaml
+2026-10-19 21:40:35,152 [INFO] defect.pipeline: 流水线完成：帧 1×1，检测结果 0 条
+2026-10-19 21:40:35,152 [INFO] defect: 运行完成，共 0 条检测结果
+2026-10-19 21:42:28,917 [INFO] defect: 已加载配置：/home/yjh/demo_OpenCv_picture/configs/demo.yaml
+2026-10-19 21:42:28,917 [INFO] defect.pipeline: 流水线完成：帧 1×1，检测结果 0 条
+2026-10-19 21:42:28,917 [INFO] defect: 运行完成，共 0 条检测结果
+2026-10-19 21:42:29,115 [INFO] defect: 已加载配置：/tmp/bad.yaml
+2026-10-19 21:42:29,265 [ERROR] defect: 配置文件不存在：[Errno 2] No such file or directory: '/tmp/nope.yaml'
+2026-10-19 21:42:29,488 [INFO] defect: 已加载配置：/home/yjh/demo_OpenCv_picture/configs/demo.yaml
+2026-10-19 21:42:29,489 [INFO] defect.pipeline: 流水线完成：帧 1×1，检测结果 0 条
+2026-10-19 21:42:29,489 [INFO] defect: 运行完成，共 0 条检测结果
+2026-10-19 21:49:19,016 [INFO] defect: 已加载配置：/home/yjh/demo_OpenCv_picture/configs/demo.yaml
+2026-10-19 21:49:19,016 [INFO] defect.pipeline: 流水线完成：帧 1×1，检测结果 0 条
+2026-10-19 21:49:19,016 [INFO] defect: 运行完成，共 0 条检测结果
+2026-10-19 21:50:06,481 [INFO] defect: 已加载配置：/home/yjh/demo_OpenCv_picture/configs/demo.yaml
+2026-10-19 21:50:06,481 [INFO] defect: 运行完成，共 0 条检测结果

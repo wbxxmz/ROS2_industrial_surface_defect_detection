@@ -1,0 +1,5 @@
+# 基础依赖（阶段 1 锁定；版本按当前环境已安装版本）
+numpy==2.2.6
+opencv-python-headless==5.0.0.93
+PyYAML==5.4.1
+pytest==6.2.5
