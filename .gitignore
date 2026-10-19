@@ -1,7 +1,18 @@
-# ROS2 编译产物
+# Python
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# 日志与编译产物
+logs/
+log/
 build/
 install/
-log/
+
+# 虚拟环境
+venv/
+.venv/
 
 # 模型权重与数据集（体积大，单独分发）
 models/*.pt
@@ -10,9 +21,3 @@ datasets/
 
 # 质检报告输出
 reports/
-
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.pytest_cache/
