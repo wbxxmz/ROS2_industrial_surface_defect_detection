@@ -25,4 +25,8 @@ reports/
 # 本地大数据集（体积大，不提交）
 shapes/
 
+# 本地调试脚本与调试产物（仅本地用，不提交）
+visualize.py
+opencv_pictrue_tests/
+
 # 说明：test_picture/ 为开源样例图，需提交到仓库，故不在此忽略

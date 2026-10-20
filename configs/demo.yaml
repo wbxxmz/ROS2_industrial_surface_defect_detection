@@ -1,6 +1,31 @@
-# 阶段 2 示例配置：图片源批量导入 test_picture/ 下的开源样例缺陷图（字段见阶段 2 §4.4）
+# 阶段 3 示例配置：图片源批量导入 test_picture/ 下的开源样例缺陷图
+# input 字段见阶段 2 §4.4；detector.params 字段与默认值见阶段 3 §4.4
 input:
   type: image
   dir: test_picture
 detector:
-  type: dummy
+  type: opencv
+  params:
+    # 通用
+    min_area: 10
+    min_confidence: 0.45
+    denoise: gaussian
+    denoise_kernel: 5
+    clahe_clip: 2.0
+    clahe_grid: 8
+    # 划痕
+    scratch_canny_low: 50
+    scratch_canny_high: 150
+    scratch_min_aspect: 3.0
+    scratch_max_width: 8
+    # 凹坑
+    dent_log_sigma: 3.0
+    dent_roundness_min: 0.6
+    dent_radius_min: 2
+    dent_radius_max: 20
+    # 污渍
+    stain_sat_min: 60
+    stain_color_dist_min: 30.0
+    stain_area_ratio_min: 0.001
+    # 缺口
+    notch_convexity_min: 0.02

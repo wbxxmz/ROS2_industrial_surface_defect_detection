@@ -12,7 +12,9 @@ from core import Detector, Detection, Frame, InputSource
 
 
 def build_detector(config: dict) -> Detector:
-    """按 config["detector"]["type"] 选择检测器（本阶段仅 dummy）。
+    """按 config["detector"]["type"] 选择检测器（dummy / opencv）。
+
+    参数校验由 ``OpencvDetector.load`` 在运行时完成（非法参数抛 DetectorLoadError）。
 
     :raises ValueError: 未知 detector.type
     """
@@ -21,6 +23,10 @@ def build_detector(config: dict) -> Detector:
         from detectors.dummy_detector import DummyDetector
 
         return DummyDetector()
+    if detector_type == "opencv":
+        from detectors.opencv_detector import OpencvDetector
+
+        return OpencvDetector()
     raise ValueError(f"未知 detector.type: {detector_type!r}")
 
 
