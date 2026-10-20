@@ -12,9 +12,9 @@ from core import Detector, Detection, Frame, InputSource
 
 
 def build_detector(config: dict) -> Detector:
-    """按 config["detector"]["type"] 选择检测器（dummy / opencv）。
+    """按 config["detector"]["type"] 选择检测器（dummy / opencv / yolo）。
 
-    参数校验由 ``OpencvDetector.load`` 在运行时完成（非法参数抛 DetectorLoadError）。
+    参数校验由各检测器的 ``load`` 在运行时完成（非法参数抛 DetectorLoadError）。
 
     :raises ValueError: 未知 detector.type
     """
@@ -27,6 +27,10 @@ def build_detector(config: dict) -> Detector:
         from detectors.opencv_detector import OpencvDetector
 
         return OpencvDetector()
+    if detector_type == "yolo":
+        from detectors.yolo_detector import YoloDetector
+
+        return YoloDetector()
     raise ValueError(f"未知 detector.type: {detector_type!r}")
 
 

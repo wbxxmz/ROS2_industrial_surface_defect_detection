@@ -1,0 +1,15 @@
+# 阶段 4 示例配置：YOLO 检测器 + 图片源（test_picture/ 下的开源样例缺陷图）
+# 注意：需要本地存在权重文件（默认 yolov8n.pt）；缺失时 load 抛 DetectorLoadError。
+# 权重体积大、不入库（见 .gitignore），请自行下载：https://github.com/ultralytics/assets/releases
+# input 字段见阶段 2 §4.4；detector.params 字段与默认值见阶段 4 §4.4
+input:
+  type: image
+  dir: test_picture
+detector:
+  type: yolo
+  params:
+    model_path: yolov8n.pt   # 权重文件路径；不存在则 load 抛 DetectorLoadError
+    conf_threshold: 0.25
+    iou_threshold: 0.45
+    device: cpu              # cpu / cuda / cuda:N
+    imgsz: 640

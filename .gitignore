@@ -17,6 +17,8 @@ venv/
 # 模型权重与数据集（体积大，单独分发）
 models/*.pt
 models/*.onnx
+*.pt
+*.onnx
 datasets/
 
 # 质检报告输出
@@ -27,6 +29,7 @@ shapes/
 
 # 本地调试脚本与调试产物（仅本地用，不提交）
 visualize.py
+visualize_yolo.py
 opencv_pictrue_tests/
 
 # 说明：test_picture/ 为开源样例图，需提交到仓库，故不在此忽略
