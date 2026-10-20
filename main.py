@@ -9,6 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from inputs.factory import build_source  # noqa: E402
 from pipeline.pipeline import Pipeline, build_detector  # noqa: E402
 from utils.config import load_config  # noqa: E402
 from utils.exceptions import ProjectError  # noqa: E402
@@ -39,7 +40,8 @@ def main(argv=None) -> int:
         logger.info("已加载配置：%s", config_path)
 
         detector = build_detector(config)
-        pipeline = Pipeline(config, detector)
+        source = build_source(config.get("input") or {})
+        pipeline = Pipeline(config, detector, source)
         results = pipeline.run()
         logger.info("运行完成，共 %d 条检测结果", len(results))
         return 0

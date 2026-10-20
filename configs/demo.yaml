@@ -1,5 +1,6 @@
-# 阶段 1 最小示例配置（非完整 schema；字段名与结构 TBD-阶段 2 前定）
+# 阶段 2 示例配置：图片源批量导入 test_picture/ 下的开源样例缺陷图（字段见阶段 2 §4.4）
 input:
   type: image
+  dir: test_picture
 detector:
   type: dummy

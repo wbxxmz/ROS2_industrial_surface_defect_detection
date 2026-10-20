@@ -21,3 +21,8 @@ datasets/
 
 # 质检报告输出
 reports/
+
+# 本地大数据集（体积大，不提交）
+shapes/
+
+# 说明：test_picture/ 为开源样例图，需提交到仓库，故不在此忽略
