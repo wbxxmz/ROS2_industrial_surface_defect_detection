@@ -27,6 +27,15 @@ reports/
 # 本地大数据集（体积大，不提交）
 shapes/
 
+# 训练产物（数据集副本 / 数据配置里含本机绝对路径 / 训练结果）
+# runs/: ultralytics 训练过程产物（权重、图表、日志），体积巨大
+# best.pt: 微调后的专属权重，体积大，不入库（*.pt 已兜底）
+runs/
+datasets/
+neu_det.yaml
+best.pt
+train.log
+
 # 本地调试脚本与调试产物（仅本地用，不提交）
 visualize.py
 visualize_yolo.py
