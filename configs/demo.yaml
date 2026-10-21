@@ -33,6 +33,6 @@ detector:
 judge:
   max_count: 0
   max_area_ratio: 0.01
-  min_confidence: 0.45
+  min_confidence: 0.25   # 与 YOLO 检测器 conf_threshold 对齐，避免判定层二次过滤
   min_area_px: 10
   max_severity: null      # 阶段 6 前必须为 null
