@@ -6,9 +6,15 @@
 """
 
 import logging
+from pathlib import Path
 from typing import List, Optional
 
 from core import Detector, Detection, Frame, InputSource
+from judge import judge
+from visualization import render_to_file
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+VISUAL_OUTPUT_DIR = PROJECT_ROOT / "reports" / "visual"  # 已在 .gitignore 中屏蔽
 
 
 def build_detector(config: dict) -> Detector:
@@ -59,9 +65,23 @@ class Pipeline:
         """后处理（直通）：原样返回 List[Detection]。"""
         return detections
 
+    def _source_label(self) -> str:
+        """输出文件名前缀：图片/视频取文件名主干，摄像头取类型名。"""
+        input_cfg = self._config.get("input") or {}
+        for key in ("path", "dir"):
+            value = input_cfg.get(key)
+            if value:
+                return Path(str(value)).stem or "frame"
+        return str(input_cfg.get("type") or "frame")
+
+    def _visual_path(self, frame: Frame) -> Path:
+        """标注图落盘路径：reports/visual/{源标识}_frame{帧号:06d}.jpg（§4.4）。"""
+        return VISUAL_OUTPUT_DIR / f"{self._source_label()}_frame{frame.frame_index:06d}.jpg"
+
     def run(self) -> List[Detection]:
-        """跑完整条流水线：逐帧采集直到读尽，返回累计结果列表。"""
+        """跑完整条流水线：逐帧采集直到读尽，判定并落盘标注图，返回累计结果列表。"""
         results: List[Detection] = []
+        judge_cfg = self._config.get("judge")
         try:
             self._detector.load(self._config.get("detector") or {})
             self._source.open(self._config.get("input") or {})
@@ -71,12 +91,17 @@ class Pipeline:
                     break
                 detections = self.postprocess(self.detect(self.preprocess(frame)))
                 results.extend(detections)
+                verdict = judge(detections, judge_cfg)
+                output_path = render_to_file(frame, detections, verdict, str(self._visual_path(frame)))
                 self._logger.info(
-                    "帧 %d：%s×%s，检测结果 %d 条",
+                    "帧 %d：%s×%s，检测结果 %d 条，is_pass=%s，reason=%s，标注图=%s",
                     frame.frame_index,
                     frame.width,
                     frame.height,
                     len(detections),
+                    verdict.is_pass,
+                    verdict.reason,
+                    output_path,
                 )
         finally:
             self._detector.release()

@@ -29,3 +29,10 @@ detector:
     stain_area_ratio_min: 0.001
     # 缺口
     notch_convexity_min: 0.02
+# 阶段 5 §4.2.2 判定参数（配置驱动，禁止写死）
+judge:
+  max_count: 0
+  max_area_ratio: 0.01
+  min_confidence: 0.45
+  min_area_px: 10
+  max_severity: null      # 阶段 6 前必须为 null
