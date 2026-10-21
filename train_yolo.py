@@ -5,7 +5,7 @@
 2. 按 ``NEU_TO_PROJECT`` 把 NEU 的 6 类合并为项目契约的 4 类（阶段 3 §4.1 映射表）；
 3. 按类别分层切分 train/val（8:2），转成 YOLO txt 标注，落到 ``datasets/neu_det``；
 4. 自动生成 ``neu_det.yaml``；
-5. 用 ``yolov8n.pt`` 预训练权重微调 20 epochs（CUDA 可用则 device=0，否则 cpu）；
+5. 用 ``yolov8s.pt`` 预训练权重微调 50 epochs（默认 device=0，强制走 CUDA GPU）；
 6. 训练结束把 ``best.pt`` 复制到项目根目录。
 
 用法：python3 train_yolo.py
@@ -29,7 +29,8 @@ IMAGES_DIR = DATASET_ROOT / "IMAGES"
 ANNOTATIONS_DIR = DATASET_ROOT / "ANNOTATIONS"
 WORK_DIR = PROJECT_ROOT / "datasets" / "neu_det"  # 已在 .gitignore 屏蔽
 YAML_PATH = PROJECT_ROOT / "neu_det.yaml"  # 含本机绝对路径，已在 .gitignore 屏蔽
-PRETRAINED = PROJECT_ROOT / "yolov8n.pt"
+PRETRAINED_NAME = "yolov8s.pt"  # 本地不存在时由 ultralytics 自动下载
+PRETRAINED = PROJECT_ROOT / PRETRAINED_NAME
 OUTPUT_WEIGHT = PROJECT_ROOT / "best.pt"
 RUNS_DIR = PROJECT_ROOT / "runs"
 
@@ -50,12 +51,18 @@ SEED = 42
 
 
 def pick_device(requested: str) -> str:
-    """CUDA 可用则用 GPU(0)，否则回落 CPU（本机实测无 CUDA）。"""
-    if requested != "auto":
-        return requested
+    """校验并返回设备：``auto`` 按 CUDA 可用性选择，显式 GPU 不可用时给出清晰错误。"""
     import torch
 
-    return "0" if torch.cuda.is_available() else "cpu"
+    if requested == "auto":
+        return "0" if torch.cuda.is_available() else "cpu"
+    if requested != "cpu" and not requested.startswith("cuda") and not torch.cuda.is_available():
+        raise SystemExit(
+            f"[错误] 指定 device={requested}，但当前 PyTorch 未启用 CUDA"
+            f"（torch={torch.__version__}, cuda_available=False）。\n"
+            "请先安装 NVIDIA 专有驱动 + CUDA 版 PyTorch，或改用 --device cpu。"
+        )
+    return requested
 
 
 def parse_voc(xml_path: Path):
@@ -179,11 +186,11 @@ def write_yaml() -> Path:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="NEU-DET → YOLOv8 微调训练")
-    parser.add_argument("--epochs", type=int, default=20, help="训练轮数（默认 20）")
+    parser.add_argument("--epochs", type=int, default=50, help="训练轮数（默认 50）")
     parser.add_argument("--imgsz", type=int, default=416, help="输入尺寸（原图 200×200，默认 416）")
     parser.add_argument("--batch", type=int, default=0, help="批大小，0=按设备自动")
     parser.add_argument("--workers", type=int, default=-1, help="DataLoader 进程数，-1=按设备自动")
-    parser.add_argument("--device", default="auto", help="auto / 0 / cpu")
+    parser.add_argument("--device", default="0", help="默认 0（GPU）；也可 auto / cpu / cuda:0")
     parser.add_argument("--rebuild-labels", action="store_true", help="强制重建 YOLO 标注")
     args = parser.parse_args(argv)
 
@@ -201,7 +208,7 @@ def main(argv=None) -> int:
     build_dataset(force=args.rebuild_labels)
     data_yaml = write_yaml()
 
-    weights = str(PRETRAINED) if PRETRAINED.is_file() else "yolov8n.pt"
+    weights = str(PRETRAINED) if PRETRAINED.is_file() else PRETRAINED_NAME
     print(f"[训练启动] weights={weights} device={device} epochs={args.epochs} "
           f"imgsz={args.imgsz} batch={batch} workers={workers}")
 

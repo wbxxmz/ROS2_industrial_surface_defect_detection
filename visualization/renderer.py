@@ -111,9 +111,25 @@ def _draw_detection(image: np.ndarray, detection: Detection) -> None:
         color = UNKNOWN_COLOR
 
     _draw_mask(image, detection, color)
-    cv2.rectangle(image, (x1, y1), (x2, y2), color, _thickness(width, height))
+
+    # 阶段 6 §4.1.6：severity 只接受契约值 0/1/2，其它值降级为未分级
+    severity = detection.severity
+    if isinstance(severity, bool) or not isinstance(severity, int) or severity not in (0, 1, 2):
+        severity = None
+
+    thickness = _thickness(width, height)
+    if severity == 2:  # 重度：外扩 3 px 白色描边 + 2 倍线宽
+        thickness *= 2
+        ox1, oy1 = max(0, x1 - 3), max(0, y1 - 3)
+        ox2, oy2 = min(width - 1, x2 + 3), min(height - 1, y2 + 3)
+        cv2.rectangle(image, (ox1, oy1), (ox2, oy2), (255, 255, 255), thickness)
+    cv2.rectangle(image, (x1, y1), (x2, y2), color, thickness)
 
     label = f"{detection.class_name} {detection.confidence:.2f}"
+    if severity is not None:  # ASCII：Hershey 字体不支持中文
+        label += f" S{severity}"
+        if severity == 2:
+            label = "!" + label
     font_scale = _font_scale(width, height)
     (text_w, text_h), baseline = cv2.getTextSize(label, FONT, font_scale, 1)
     top = max(y1, text_h + baseline)  # 标签贴在框上沿，越界时下移

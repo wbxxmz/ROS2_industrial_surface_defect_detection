@@ -184,10 +184,75 @@ def test_cfg_none_uses_documented_defaults():
     assert verdict.total_count == 0
 
 
-def test_severity_does_not_trigger_in_stage5():
-    # 阶段 5 max_severity 恒为 null，severity 有值也不参与判定
-    verdict = judge([make_detection(severity="严重")], {"max_count": 10})
+def test_severity_not_triggered_when_limit_is_null():
+    # 阶段 5 兼容语义：未配置 max_severity 时，severity 有值也不参与判定
+    verdict = judge([make_detection(severity=2)], {"max_count": 10})
     assert verdict.is_pass is True
+    assert verdict.max_severity == 2
+
+
+# --------------------------------------------------------------------------- #
+# 阶段 6 §4.1.5：max_severity 汇总与 severity 规则
+# --------------------------------------------------------------------------- #
+def test_max_severity_is_max_over_valid_defects():
+    detections = [
+        make_detection(severity=0),
+        make_detection(severity=2),
+        make_detection(severity=1),
+    ]
+    assert judge(detections, {"max_count": 10}).max_severity == 2
+
+
+def test_max_severity_none_when_no_valid_defects():
+    assert judge([]).max_severity is None
+    # confidence 低于阈值 → 不算有效缺陷
+    assert judge([make_detection(confidence=0.10, severity=2)]).max_severity is None
+
+
+def test_max_severity_none_when_all_unlabeled():
+    assert judge([make_detection(), make_detection()], {"max_count": 10}).max_severity is None
+
+
+@pytest.mark.parametrize("severity", [True, 3, -1, "严重", 1.5])
+def test_invalid_severity_is_ignored(severity):
+    verdict = judge([make_detection(severity=severity)], {"max_count": 10})
+    assert verdict.max_severity is None
+    assert verdict.is_pass is True
+
+
+def test_severity_rule_triggers_when_above_limit():
+    verdict = judge([make_detection(severity=2)], {"max_count": 10, "max_severity": 1})
+    assert verdict.is_pass is False
+    assert verdict.triggered == ["severity:2>1"]
+
+
+def test_severity_rule_passes_when_equal_to_limit():
+    verdict = judge([make_detection(severity=2)], {"max_count": 10, "max_severity": 2})
+    assert verdict.is_pass is True
+    assert verdict.triggered == []
+
+
+def test_severity_rule_ignores_unlabeled_detections():
+    verdict = judge([make_detection(severity=None)], {"max_count": 10, "max_severity": 0})
+    assert verdict.is_pass is True
+    assert verdict.triggered == []
+
+
+def test_severity_rule_uses_only_valid_defects():
+    verdict = judge(
+        [make_detection(severity=2, confidence=0.10)],
+        {"max_count": 10, "max_severity": 1},
+    )
+    assert verdict.is_pass is True
+    assert verdict.max_severity is None
+
+
+def test_severity_rule_follows_area_rule_in_triggered():
+    verdict = judge(
+        [make_detection(severity=2, area_ratio=0.5)],
+        {"max_count": 10, "max_area_ratio": 0.01, "max_severity": 1},
+    )
+    assert verdict.triggered == ["area:0.5000>0.01", "severity:2>1"]
 
 
 def test_unknown_class_id_is_excluded():

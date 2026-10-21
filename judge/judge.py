@@ -66,6 +66,15 @@ def _resolve_class_id(key: object) -> int:
     raise ValueError(f"per_class 的键必须是 int 或 str，收到 {type(key).__name__}")
 
 
+def _require_severity_limit(name: str, value: object) -> int:
+    """严重度上限：只接受 int 0/1/2（阶段 6 §4.1.5 扩展；null 由调用方处理）。"""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{name} 必须是 int（0/1/2）或 null，收到 {value!r}")
+    if value not in (0, 1, 2):
+        raise ValueError(f"{name} 只能是 0/1/2，收到 {value}")
+    return value
+
+
 @dataclass(frozen=True)
 class PerClassRule:
     """类内约束；未配置的维度为 ``None``（不约束）。"""
@@ -82,7 +91,7 @@ class JudgeConfig:
     max_area_ratio: float = 0.01
     min_confidence: float = 0.45
     min_area_px: int = 10
-    max_severity: None = None
+    max_severity: Optional[int] = None
     per_class: Dict[int, PerClassRule] = field(default_factory=dict)
 
     @classmethod
@@ -96,12 +105,12 @@ class JudgeConfig:
         if unknown:
             raise ValueError(f"judge 配置含未知字段 {unknown}；允许字段见阶段 5 §4.2.2")
 
-        max_severity = cfg.get("max_severity")
-        if max_severity is not None:
-            raise ValueError(
-                f"max_severity 在阶段 5 只接受 null，收到 {max_severity!r}"
-                "（严重度分级在阶段 6 启用）"
-            )
+        raw_max_severity = cfg.get("max_severity")
+        max_severity = (
+            None
+            if raw_max_severity is None  # 默认不启用严重度规则（阶段 5 兼容语义）
+            else _require_severity_limit("max_severity", raw_max_severity)
+        )
 
         raw_per_class = cfg.get("per_class")
         if raw_per_class is None:  # YAML 中只写键名不写值时的空值，等价于未配置
@@ -121,7 +130,7 @@ class JudgeConfig:
             max_area_ratio=_require_ratio("max_area_ratio", cfg.get("max_area_ratio", 0.01)),
             min_confidence=_require_ratio("min_confidence", cfg.get("min_confidence", 0.45)),
             min_area_px=_require_count("min_area_px", cfg.get("min_area_px", 10)),
-            max_severity=None,
+            max_severity=max_severity,
             per_class=per_class,
         )
 
@@ -186,13 +195,29 @@ def judge(detections: List[Detection], cfg: Optional[dict] = None) -> Verdict:
     # 求和后 clip 到 [0,1]，但规则比较用 clip 后的值（§4.2.1）
     total_area_ratio = min(1.0, max(0.0, sum(float(d.area_ratio) for d in valid)))
 
+    # §4.1.5 有效缺陷中的最高严重度；severity=None 的条目不参与（不当作 0）
+    max_severity: Optional[int] = None
+    for detection in valid:
+        severity = detection.severity
+        if severity is None:
+            continue
+        if isinstance(severity, bool) or not isinstance(severity, int) or severity not in (0, 1, 2):
+            logger.warning("忽略非法 severity=%r：class_id=%d", severity, detection.class_id)
+            continue
+        max_severity = severity if max_severity is None else max(max_severity, severity)
+
     triggered: List[str] = []
     if total_count > config.max_count:
         triggered.append(f"count:{total_count}>{config.max_count}")
     if total_area_ratio > config.max_area_ratio:
         triggered.append(f"area:{total_area_ratio:.4f}>{config.max_area_ratio}")
-    # severity 规则：阶段 5 的 max_severity 恒为 null（from_dict 已强制），故此规则不触发；
-    # 阶段 6 启用时在此按 §4.2.1 追加 "severity:<等级>>=<上限>"。
+    # 阶段 6 §4.1.5：severity:<实际最大值>>=<上限>；未配置上限或全部未分级时不触发
+    if (
+        config.max_severity is not None
+        and max_severity is not None
+        and max_severity > config.max_severity
+    ):
+        triggered.append(f"severity:{max_severity}>{config.max_severity}")
 
     # 类内规则只追加约束、不与全局规则互相收敛（§4.2.1 优先级语义）
     for class_id in sorted(config.per_class):
@@ -217,6 +242,7 @@ def judge(detections: List[Detection], cfg: Optional[dict] = None) -> Verdict:
         total_area_px=total_area_px,
         total_area_ratio=total_area_ratio,
         triggered=triggered,
+        max_severity=max_severity,
     )
 
 

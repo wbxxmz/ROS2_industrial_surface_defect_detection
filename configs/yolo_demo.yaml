@@ -14,3 +14,12 @@ detector:
     iou_threshold: 0.45
     device: cpu              # cpu / cuda / cuda:N
     imgsz: 640
+# 阶段 6 §4.1.3 严重程度分级参数（与 configs/demo.yaml 保持一致）
+severity:
+  enabled: true
+  weights: {area: 0.6, confidence: 0.25}
+  area_ratio_ref: {0: 0.02, 1: 0.01, 2: 0.03, 3: 0.01, default: 0.02}
+  conf_floor: 0.25
+  conf_ceiling: 0.95
+  class_bias: {0: 0.0, 1: 0.0, 2: 0.0, 3: 0.0, default: 0.0}
+  grade_thresholds: {mild_max: 0.35, severe_min: 0.70}

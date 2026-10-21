@@ -4,7 +4,7 @@
 """
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
 import numpy as np
 
@@ -31,4 +31,4 @@ class Detection:
     area_ratio: float  # 0~1，缺陷面积 / 图像面积
     confidence: float  # 0.0–1.0
     mask: Optional[np.ndarray] = None  # 像素级；数据类型 TBD-阶段 3
-    severity: Optional[Any] = None  # 阶段 6 前恒为 None；取值集合 TBD-阶段 6
+    severity: Optional[int] = None  # 阶段 6 §4.1.1：0=轻度 / 1=中度 / 2=重度；None=未分级

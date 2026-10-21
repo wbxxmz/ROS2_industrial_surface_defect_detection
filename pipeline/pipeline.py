@@ -11,6 +11,7 @@ from typing import List, Optional
 
 from core import Detector, Detection, Frame, InputSource
 from judge import judge
+from severity import grade
 from visualization import render_to_file
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -65,6 +66,10 @@ class Pipeline:
         """后处理（直通）：原样返回 List[Detection]。"""
         return detections
 
+    def grade(self, detections: List[Detection]) -> List[Detection]:
+        """阶段 6 §4.1.7：为每条检测写入 severity（detect 与 judge 之间）。"""
+        return grade(detections, self._config.get("severity"))
+
     def _source_label(self) -> str:
         """输出文件名前缀：图片/视频取文件名主干，摄像头取类型名。"""
         input_cfg = self._config.get("input") or {}
@@ -89,17 +94,18 @@ class Pipeline:
                 frame = self.capture()
                 if frame is None:  # None 只表示读尽（阶段 0 §5.4.3）
                     break
-                detections = self.postprocess(self.detect(self.preprocess(frame)))
+                detections = self.grade(self.postprocess(self.detect(self.preprocess(frame))))
                 results.extend(detections)
                 verdict = judge(detections, judge_cfg)
                 output_path = render_to_file(frame, detections, verdict, str(self._visual_path(frame)))
                 self._logger.info(
-                    "帧 %d：%s×%s，检测结果 %d 条，is_pass=%s，reason=%s，标注图=%s",
+                    "帧 %d：%s×%s，检测结果 %d 条，is_pass=%s，max_severity=%s，reason=%s，标注图=%s",
                     frame.frame_index,
                     frame.width,
                     frame.height,
                     len(detections),
                     verdict.is_pass,
+                    verdict.max_severity,
                     verdict.reason,
                     output_path,
                 )

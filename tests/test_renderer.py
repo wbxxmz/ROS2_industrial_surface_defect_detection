@@ -29,7 +29,13 @@ def make_frame(width: int = 200, height: int = 200) -> Frame:
     return Frame(image=image, width=width, height=height, frame_index=0, timestamp=0.0)
 
 
-def make_detection(class_id: int = 0, bbox=(100, 100, 50, 50), confidence: float = 0.9, mask=None) -> Detection:
+def make_detection(
+    class_id: int = 0,
+    bbox=(100, 100, 50, 50),
+    confidence: float = 0.9,
+    mask=None,
+    severity=None,
+) -> Detection:
     return Detection(
         class_id=class_id,
         class_name=CLASS_MAP[class_id],
@@ -38,7 +44,7 @@ def make_detection(class_id: int = 0, bbox=(100, 100, 50, 50), confidence: float
         area_ratio=0.01,
         confidence=confidence,
         mask=mask,
-        severity=None,
+        severity=severity,
     )
 
 
@@ -118,6 +124,70 @@ def test_thick_frame_band_at_high_resolution():
     image = render(frame, [detection], fail_verdict([detection]))
     # thickness=5：边框内侧 4 px 仍为红色
     assert tuple(int(v) for v in image[150, 103]) == COLORS[0]
+
+
+# --------------------------------------------------------------------------- #
+# 阶段 6 §4.1.6 严重度可视化联动
+# --------------------------------------------------------------------------- #
+def capture_labels(monkeypatch, frame, detections, verdict):
+    """拦截 cv2.putText，返回本次渲染写下的全部文本（含横幅）。"""
+    labels = []
+    original = cv2.putText
+
+    def spy(image, text, *args, **kwargs):
+        labels.append(text)
+        return original(image, text, *args, **kwargs)
+
+    monkeypatch.setattr(cv2, "putText", spy)
+    render(frame, detections, verdict)
+    return labels
+
+
+def test_label_without_severity_matches_stage5(monkeypatch):
+    labels = capture_labels(monkeypatch, make_frame(), [make_detection(1)], fail_verdict())
+    assert "dent 0.90" in labels
+
+
+@pytest.mark.parametrize("severity", [0, 1])
+def test_label_appends_ascii_severity(monkeypatch, severity):
+    detection = make_detection(1, severity=severity)
+    labels = capture_labels(monkeypatch, make_frame(), [detection], fail_verdict())
+    assert f"dent 0.90 S{severity}" in labels
+
+
+def test_severe_label_has_bang_prefix(monkeypatch):
+    detection = make_detection(1, severity=2)
+    labels = capture_labels(monkeypatch, make_frame(), [detection], fail_verdict())
+    assert "!dent 0.90 S2" in labels
+
+
+def test_severe_adds_white_outline_and_double_thickness():
+    # 黑底便于区分白色描边；bbox=(100,100,50,50)，常规线宽 1、重度 2
+    frame = Frame(
+        image=np.zeros((200, 200, 3), dtype=np.uint8),
+        width=200,
+        height=200,
+        frame_index=0,
+        timestamp=0.0,
+    )
+    mild = make_detection(0, severity=1)
+    severe = make_detection(0, severity=2)
+    mild_image = render(frame, [mild], fail_verdict([mild]))
+    severe_image = render(frame, [severe], fail_verdict([severe]))
+
+    # 底边 y=153 在框外 3 px：重度为白色描边，中度仍为黑底
+    assert tuple(int(v) for v in mild_image[153, 120]) == (0, 0, 0)
+    assert tuple(int(v) for v in severe_image[153, 120]) == (255, 255, 255)
+    # 内框线宽：中度 1 px（y=149 仍为底色），重度 2 px（y=149 为类别色）
+    assert tuple(int(v) for v in mild_image[149, 120]) == (0, 0, 0)
+    assert tuple(int(v) for v in severe_image[149, 120]) == COLORS[0]
+
+
+def test_invalid_severity_degrades_to_unlabeled(monkeypatch):
+    detection = make_detection(1, severity=3)
+    labels = capture_labels(monkeypatch, make_frame(), [detection], fail_verdict())
+    assert "dent 0.90" in labels
+    assert "S3" not in " ".join(labels)
 
 
 # --------------------------------------------------------------------------- #
