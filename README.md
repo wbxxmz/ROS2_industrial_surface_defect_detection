@@ -1,5 +1,9 @@
 # ROS2_industrial_surface_defect_detection
 
+![demo](docs/images/demo.jpg)
+
+YOLOv8m 检出 5 处缺陷，其中 1 处判定为重度（S2），整体判定 FAIL。
+
 > 基于 ROS2 + Python 的工业产品表面缺陷检测平台，面向产线质检场景，支持**图片 / 视频 / 摄像头**三类输入，提供 **OpenCV 传统算法** 与 **YOLO 深度学习** 双算法路线。
 
 ## 项目简介
