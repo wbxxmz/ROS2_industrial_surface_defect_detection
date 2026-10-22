@@ -24,7 +24,7 @@ from judge import summarize
 logger = logging.getLogger("defect.report")
 
 REQUIRED_KEYS = ("source", "verdict", "detections")
-SUPPORTED_FORMATS = ("pdf", "xlsx")
+SUPPORTED_FORMATS = ("pdf", "xlsx", "html")
 SEVERITY_LABELS = {0: "轻度", 1: "中度", 2: "重度"}
 
 
@@ -86,10 +86,14 @@ class ReportBuilder:
             from report.exporters.pdf_exporter import export_pdf
 
             export_pdf(data, output)
-        else:
+        elif config["format"] == "xlsx":
             from report.exporters.xlsx_exporter import export_xlsx
 
             export_xlsx(data, output)
+        else:  # V1.1 扩展 01：自包含 HTML（无外链资源）
+            from report.exporters.html_exporter import export_html
+
+            export_html(data, output)
 
         logger.info("报告已生成：%s（格式 %s，样本 %d）", output, config["format"], len(samples))
         return output
