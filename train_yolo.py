@@ -5,7 +5,7 @@
 2. 按 ``NEU_TO_PROJECT`` 把 NEU 的 6 类合并为项目契约的 4 类（阶段 3 §4.1 映射表）；
 3. 按类别分层切分 train/val（8:2），转成 YOLO txt 标注，落到 ``datasets/neu_det``；
 4. 自动生成 ``neu_det.yaml``；
-5. 用 ``yolov8s.pt`` 预训练权重微调 50 epochs（默认 device=0，强制走 CUDA GPU）；
+5. 用 ``yolov8m.pt`` 预训练权重微调 100 epochs（默认 device=0，强制走 CUDA GPU）；
 6. 训练结束把 ``best.pt`` 复制到项目根目录。
 
 用法：python3 train_yolo.py
@@ -29,7 +29,7 @@ IMAGES_DIR = DATASET_ROOT / "IMAGES"
 ANNOTATIONS_DIR = DATASET_ROOT / "ANNOTATIONS"
 WORK_DIR = PROJECT_ROOT / "datasets" / "neu_det"  # 已在 .gitignore 屏蔽
 YAML_PATH = PROJECT_ROOT / "neu_det.yaml"  # 含本机绝对路径，已在 .gitignore 屏蔽
-PRETRAINED_NAME = "yolov8s.pt"  # 本地不存在时由 ultralytics 自动下载
+PRETRAINED_NAME = "yolov8m.pt"  # 本地不存在时由 ultralytics 自动下载
 PRETRAINED = PROJECT_ROOT / PRETRAINED_NAME
 OUTPUT_WEIGHT = PROJECT_ROOT / "best.pt"
 RUNS_DIR = PROJECT_ROOT / "runs"
@@ -186,8 +186,8 @@ def write_yaml() -> Path:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="NEU-DET → YOLOv8 微调训练")
-    parser.add_argument("--epochs", type=int, default=50, help="训练轮数（默认 50）")
-    parser.add_argument("--imgsz", type=int, default=416, help="输入尺寸（原图 200×200，默认 416）")
+    parser.add_argument("--epochs", type=int, default=100, help="训练轮数（默认 100）")
+    parser.add_argument("--imgsz", type=int, default=640, help="输入尺寸（原图 200×200，默认 640）")
     parser.add_argument("--batch", type=int, default=0, help="批大小，0=按设备自动")
     parser.add_argument("--workers", type=int, default=-1, help="DataLoader 进程数，-1=按设备自动")
     parser.add_argument("--device", default="0", help="默认 0（GPU）；也可 auto / cpu / cuda:0")
@@ -202,7 +202,7 @@ def main(argv=None) -> int:
 
     device = pick_device(args.device)
     is_cpu = device == "cpu"
-    batch = args.batch or (8 if is_cpu else 16)  # CPU 内存有限，默认小批
+    batch = args.batch or (8 if is_cpu else 8)  # yolov8m@640 在 8GB 显存下 batch=8 稳妥，避免 OOM
     workers = args.workers if args.workers >= 0 else (2 if is_cpu else 4)
 
     build_dataset(force=args.rebuild_labels)

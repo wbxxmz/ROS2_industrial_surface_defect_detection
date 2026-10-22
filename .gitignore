@@ -36,6 +36,7 @@ neu_det.yaml
 best.pt
 train.log
 train_yolov8s.log
+train_yolov8m.log
 
 # 本地调试脚本与调试产物（仅本地用，不提交）
 visualize.py

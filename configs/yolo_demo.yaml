@@ -10,9 +10,9 @@ detector:
   type: yolo
   params:
     model_path: best.pt      # NEU-DET 微调权重；不存在则 load 抛 DetectorLoadError
-    conf_threshold: 0.25
+    conf_threshold: 0.10
     iou_threshold: 0.45
-    device: cpu              # cpu / cuda / cuda:N
+    device: cuda             # cpu / cuda / cuda:N
     imgsz: 640
 # 阶段 6 §4.1.3 严重程度分级参数（与 configs/demo.yaml 保持一致）
 severity:
