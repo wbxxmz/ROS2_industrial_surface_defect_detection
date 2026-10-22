@@ -7,3 +7,5 @@ pytest==6.2.5
 reportlab==3.6.8
 openpyxl==3.1.5
 matplotlib==3.10.9
+# 阶段 8 压测（峰值内存采集）
+psutil==5.9.0

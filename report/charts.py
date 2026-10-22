@@ -5,7 +5,12 @@
 """
 
 import logging
+import warnings
 from pathlib import Path
+
+# 系统存在多份 matplotlib 时，plt.subplots 会触发 Axes3D 导入告警；本项目只用 2D 柱状图，
+# 定向过滤该条告警，避免污染用户终端（不影响其它告警）。
+warnings.filterwarnings("ignore", message="Unable to import Axes3D.*", category=UserWarning)
 
 logger = logging.getLogger("defect.report")
 
