@@ -112,6 +112,19 @@ def test_export_comparison_html(tmp_path):
     assert "平均 detect 耗时" in text
 
 
+def test_export_comparison_html_attention_column(tmp_path):
+    """第三栏为 YOLO 注意力热力图：有图则内嵌，缺图降级为占位。"""
+    data = sample_data(tmp_path)
+    data["samples"][0]["yolo"]["attention_path"] = str(write_image(tmp_path / "attention.jpg"))
+
+    text = export_comparison_html(data, tmp_path / "compare.html").read_text(encoding="utf-8")
+
+    assert 'class="grid3"' in text
+    assert text.count("<h3>YOLO 注意力热力图</h3>") == 2  # 两张样本各一栏
+    assert "EigenCAM" in text and "不参与判定" in text
+    assert "图片缺失" in text  # 第二张样本未提供热力图
+
+
 def test_export_comparison_html_missing_image(tmp_path):
     """图片缺失时渲染占位，不抛异常。"""
     data = sample_data(tmp_path)

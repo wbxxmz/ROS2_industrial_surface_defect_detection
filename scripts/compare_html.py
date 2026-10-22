@@ -7,7 +7,8 @@
 流程：
 1. 用 ``--opencv-config`` / ``--yolo-config`` 各跑一遍 ``Pipeline``（仅覆盖 input.dir）；
 2. 逐样本记录标注图、判定、检出数、max_severity、单帧 ``detect()`` 耗时；
-3. 按文件名主干（stem）对齐两组结果，交给 ``comparison_html`` 渲染自包含 HTML。
+3. 用 YOLO 模型为每张样本生成 EigenCAM 注意力热力图（仅展示，不参与判定）；
+4. 按文件名主干（stem）对齐两组结果，交给 ``comparison_html`` 渲染自包含 HTML。
 """
 
 import argparse
@@ -23,13 +24,19 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+import cv2  # noqa: E402
+
+from core import Frame  # noqa: E402
 from inputs.factory import build_source  # noqa: E402
 from pipeline.pipeline import Pipeline, build_detector  # noqa: E402
 from report.exporters.comparison_html import export_comparison_html  # noqa: E402
 from utils.config import load_config  # noqa: E402
+from utils.exceptions import DetectorInferenceError  # noqa: E402
+from visualization.attention import generate_eigencam_heatmap  # noqa: E402
 
 # 两种算法的标注图分开存放，避免同名文件互相覆盖
 COMPARE_VISUAL_DIR = PROJECT_ROOT / "reports" / "visual" / "compare"
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp"}
 
 
 class TimedPipeline(Pipeline):
@@ -110,6 +117,54 @@ def align_samples(opencv_records: list[dict], yolo_records: list[dict]) -> list[
     return samples
 
 
+def generate_attention_maps(config: dict, input_dir: str, records: list[dict]) -> None:
+    """为 YOLO 记录补 ``attention_path``：EigenCAM 热力图写入对比目录。
+
+    单张失败（读图失败 / 推理异常）只打印警告并留空，页面降级为占位块。
+    """
+    names = {record["name"] for record in records}
+    if not names:
+        return
+
+    COMPARE_VISUAL_DIR.mkdir(parents=True, exist_ok=True)
+    root = Path(input_dir)
+    if not root.is_absolute():
+        root = PROJECT_ROOT / root
+    if not root.is_dir():  # 视频/摄像头输入无逐张原图，跳过注意力图
+        print(f"[警告] 输入不是图片目录，跳过注意力热力图：{root}")
+        return
+
+    detector = build_detector(config)
+    detector.load(config.get("detector") or {})
+    try:
+        for path in sorted(root.iterdir()):
+            if path.stem not in names or path.suffix.lower() not in IMAGE_SUFFIXES:
+                continue
+            image = cv2.imread(str(path))
+            if image is None:
+                print(f"[警告] 注意力热力图跳过（读图失败）：{path}")
+                continue
+            frame = Frame(
+                image=image,
+                width=image.shape[1],
+                height=image.shape[0],
+                frame_index=0,
+                timestamp=0.0,
+            )
+            try:
+                output = generate_eigencam_heatmap(
+                    frame, detector, COMPARE_VISUAL_DIR / f"{path.stem}__attention.jpg"
+                )
+            except (DetectorInferenceError, OSError) as exc:  # 单张失败不影响整页
+                print(f"[警告] 注意力热力图生成失败：{path.stem}（{exc}）")
+                continue
+            for record in records:
+                if record["name"] == path.stem:
+                    record["attention_path"] = output
+    finally:
+        detector.release()
+
+
 def _steady_times(samples: list[dict], side: str) -> list[float]:
     """取剔除首帧预热后的单帧耗时（无有效样本时回退为全量）。"""
     steady = [sample[side]["time_ms"] for sample in samples if not sample[side].get("warmup")]
@@ -149,6 +204,8 @@ def main(argv=None) -> int:
     opencv_records = run_algorithm("opencv", opencv_config, args.input)
     print("YOLO 推理中 ...")
     yolo_records = run_algorithm("yolo", yolo_config, args.input)
+    print("YOLO 注意力热力图生成中 ...")
+    generate_attention_maps(yolo_config, args.input, yolo_records)
 
     samples = align_samples(opencv_records, yolo_records)
     summary = build_summary(samples)

@@ -14,7 +14,8 @@ MISSING_TEXT = "图片缺失"
 
 _EXTRA_STYLE = """
 <style>
-.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+@media (max-width: 900px) { .grid3 { grid-template-columns:1fr; } }
 .side { border:1px solid var(--line); border-radius:8px; padding:12px; }
 .side h3 { font-size:13px; margin:0 0 10px; color:var(--muted); font-weight:600; }
 .badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:600; margin-left:8px; }
@@ -57,6 +58,19 @@ def _side_block(title: str, record: dict) -> str:
     )
 
 
+def _attention_block(record: dict) -> str:
+    """YOLO 一栏：EigenCAM 注意力热力图（解释性展示，不参与判定）。"""
+    return (
+        '<div class="side">'
+        "<h3>YOLO 注意力热力图</h3>"
+        f'{_image_block(record.get("attention_path"), "YOLO 注意力热力图")}'
+        '<div class="kv" style="margin-top:10px;">算法<b>EigenCAM</b></div>'
+        '<div class="kv">目标层<b>idx 6（C2f, 40×40）</b></div>'
+        '<div class="kv">用途<b>解释性展示，不参与判定</b></div>'
+        "</div>"
+    )
+
+
 def export_comparison_html(data: dict, output: Path) -> Path:
     """把对比数据渲染为自包含 HTML，返回落盘路径。"""
     output = Path(output)
@@ -94,8 +108,9 @@ def export_comparison_html(data: dict, output: Path) -> Path:
             '<div class="card">'
             f'<div style="font-size:14px;font-weight:600;margin-bottom:12px;">'
             f"{_escape(sample['name'])}{badge}</div>"
-            f'<div class="grid2">{_side_block("OpenCV", sample["opencv"])}'
-            f'{_side_block("YOLO", sample["yolo"])}</div>'
+            f'<div class="grid3">{_side_block("OpenCV", sample["opencv"])}'
+            f'{_side_block("YOLO", sample["yolo"])}'
+            f'{_attention_block(sample["yolo"])}</div>'
             "</div>"
         )
 
@@ -117,8 +132,9 @@ def export_comparison_html(data: dict, output: Path) -> Path:
         '<div class="note">判定一致率 = 两算法 is_pass 相同的样本数 / 样本总数；'
         "平均耗时为单帧 detect() 调用，已剔除各算法首帧预热（模型加载不计入），样本卡片仍显示原始单帧耗时。</div></div>\n"
         f'<div class="card"><h2>二、逐样本对比（{len(samples)} 张）</h2>'
-        '<div class="note" style="margin-bottom:14px;">左栏 OpenCV，右栏 YOLO；'
-        "标注图已 base64 内嵌，断网可看。</div>"
+        '<div class="note" style="margin-bottom:14px;">左栏 OpenCV 标注图，中栏 YOLO 标注图，'
+        "右栏 YOLO 注意力热力图（EigenCAM，目标层 6）；热力图仅用于解释模型关注区域，"
+        "不参与检测与判定。图片已 base64 内嵌，断网可看。</div>"
         f'{"".join(cards)}</div>\n'
         "</div>\n</body>\n</html>\n"
     )
