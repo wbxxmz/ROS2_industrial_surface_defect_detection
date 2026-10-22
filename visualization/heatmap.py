@@ -20,6 +20,31 @@ logger = logging.getLogger("defect.visual")
 
 DEFAULT_SIGMA_RATIO = 0.05  # 高斯核 sigma = max(2, ratio × min(W, H))
 DEFAULT_ALPHA = 0.6  # 热力图叠加透明度
+DENSITY_GAMMA = 0.6  # 密度加权指数，<1 时抬升中低密度区着色
+
+
+def blend_heatmap(
+    image: np.ndarray,
+    normalized: np.ndarray,
+    *,
+    alpha: float = DEFAULT_ALPHA,
+    gamma: float = DENSITY_GAMMA,
+) -> np.ndarray:
+    """按密度加权把伪彩色热力图叠到原图。
+
+    :param image: 原图 BGR uint8，H×W×3
+    :param normalized: 归一化密度/注意力，uint8，H×W，0=无、255=峰值
+    :param alpha: 峰值处的叠加透明度
+    :param gamma: 加权指数，<1 时中低密度区着色更明显
+    :return: 融合后的 BGR uint8 图像
+    """
+    heat = cv2.applyColorMap(normalized, cv2.COLORMAP_JET)  # 低=蓝，高=红
+    # 密度为 0 处保留原图，峰值处达到 alpha
+    weight = (normalized.astype(np.float32) / 255.0) ** gamma
+    alpha_map = (weight * alpha)[..., None]
+    return (
+        heat.astype(np.float32) * alpha_map + image.astype(np.float32) * (1.0 - alpha_map)
+    ).astype(np.uint8)
 
 
 def generate_density_heatmap(
@@ -69,15 +94,7 @@ def generate_density_heatmap(
         return None
 
     normalized = np.clip(density / peak * 255.0, 0, 255).astype(np.uint8)
-    heat = cv2.applyColorMap(normalized, cv2.COLORMAP_JET)  # 低=蓝，高=红
-
-    # 按密度加权融合：密度为 0 处保留原图，峰值处达到设定 alpha（约 0.6）
-    # 指数 0.6 < 1 用于抬升中低密度区的着色，避免只有红心可见
-    weight = (normalized.astype(np.float32) / 255.0) ** 0.6
-    alpha_map = (weight * alpha)[..., None]
-    blended = (
-        heat.astype(np.float32) * alpha_map + image.astype(np.float32) * (1.0 - alpha_map)
-    ).astype(np.uint8)
+    blended = blend_heatmap(image, normalized, alpha=alpha)
 
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)

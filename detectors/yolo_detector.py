@@ -133,6 +133,14 @@ class YoloDetector(Detector):
     def version(self) -> str:
         return "0.1.0"
 
+    @property
+    def model(self):
+        """只读：底层 ``DetectionModel``（未 ``load`` 或已 ``release`` 时为 ``None``）。
+
+        仅供可视化模块（EigenCAM）注册 forward hook 使用，不参与检测流程。
+        """
+        return None if self._model is None else self._model.model
+
     def load(self, cfg: dict) -> None:
         """读入 §4.4 参数并加载权重到指定 device；失败抛 ``DetectorLoadError``。"""
         if not isinstance(cfg, dict):
