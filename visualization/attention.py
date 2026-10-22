@@ -1,6 +1,6 @@
 """V1.1 扩展 02 第二步：EigenCAM 模型注意力热力图（梯度无关）。
 
-流程：在 backbone 最后一层（默认 idx 9 / SPPF）注册 forward hook →
+流程：在实际参与前向的 backbone 层（默认 idx 6 / stage-4 C2f）注册 forward hook →
 复用 ``detector.detect()`` 完成既有预处理与推理 → 取激活 ``[1, C, H, W]`` →
 按通道维做 PCA 第一主成分（EigenCAM）→ 归一化 → 上采样到原图 →
 JET 伪彩色 → 复用 ``heatmap.blend_heatmap`` 按密度加权融合落盘。
@@ -92,6 +92,28 @@ def _normalize_cam(
     return cam / span
 
 
+def _forward_model(detector, frame: Frame, base_model):
+    """返回实际参与前向的模型对象。
+
+    ultralytics 的 ``AutoBackend`` 会在参数处于 inference tensor 状态时 deepcopy
+    模型，此后 ``predict`` 一直复用该副本；hook 若挂在加载时的原模型上，从第二次
+    推理起不会触发。因此优先取 ``detector.inference_model``，并在 predictor 尚未
+    创建（首次调用）时先做一次丢弃结果的 warmup ``detect()``。
+    """
+    model = getattr(detector, "inference_model", None)
+    if model is None:  # 未提供该只读属性：退回加载时的模型
+        return base_model
+    if model is base_model:  # predictor 尚未创建：跑一次 warmup 让副本就位
+        try:
+            detector.detect(frame)
+        except DetectorInferenceError:
+            raise
+        except Exception as exc:
+            raise DetectorInferenceError(f"EigenCAM 预热推理失败：{exc}") from exc
+        model = getattr(detector, "inference_model", None) or base_model
+    return model
+
+
 def generate_eigencam_heatmap(
     frame: Frame,
     detector,
@@ -104,7 +126,8 @@ def generate_eigencam_heatmap(
     """生成 EigenCAM 注意力热力图并与原图融合落盘。
 
     :param frame: 统一帧对象，``image`` 为 BGR uint8
-    :param detector: 已 ``load`` 的 YOLO 检测器（需暴露只读 ``model``）
+    :param detector: 已 ``load`` 的 YOLO 检测器（需暴露只读 ``model``；提供
+        ``inference_model`` 时 hook 会挂到实际前向的副本上）
     :param output_path: 输出图片路径，父目录自动创建
     :param layer_name: 目标层索引（int 或数字字符串）；``None`` 用默认第 6 层
     :param alpha: 峰值处的叠加透明度
@@ -121,10 +144,11 @@ def generate_eigencam_heatmap(
         if not 0.0 <= low < high <= 100.0:
             raise ValueError(f"clip_percentile 非法：{clip_percentile!r}，需满足 0≤low<high≤100")
 
-    model = getattr(detector, "model", None)
-    if model is None:
+    base_model = getattr(detector, "model", None)
+    if base_model is None:
         raise DetectorInferenceError("检测器模型未加载：请先调用 load(cfg) 再生成注意力热力图")
 
+    model = _forward_model(detector, frame, base_model)
     target, index = _resolve_layer(model, layer_name)
     if layer_name is None:
         logger.info(DEFAULT_LAYER_DESC)

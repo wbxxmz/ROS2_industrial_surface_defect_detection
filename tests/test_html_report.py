@@ -122,6 +122,42 @@ def test_html_missing_image_placeholder(tmp_path):
     assert "data:image/png;base64," in text
 
 
+def test_html_attention_pair_when_enabled(tmp_path):
+    """attention=true 且热力图存在：标注图与注意力图并排内嵌。"""
+    image_path = write_sample_image(tmp_path / "sample_000.jpg")
+    write_sample_image(tmp_path / "attention_sample_000.jpg")
+    cfg = {**html_cfg(tmp_path), "attention": True}
+
+    text = ReportBuilder().build(make_batch(image_path=image_path), cfg).read_text(encoding="utf-8")
+
+    assert "注意力热力图（EigenCAM）" in text
+    assert 'class="pair"' in text
+    assert text.count("data:image/jpeg;base64,") == 2  # 标注图 + 热力图
+
+
+def test_html_attention_disabled_by_default(tmp_path):
+    """未开启 attention：卡片保持单图，不渲染热力图占位。"""
+    image_path = write_sample_image(tmp_path / "sample_000.jpg")
+    write_sample_image(tmp_path / "attention_sample_000.jpg")
+
+    text = ReportBuilder().build(make_batch(image_path=image_path), html_cfg(tmp_path)).read_text(
+        encoding="utf-8"
+    )
+
+    assert "注意力热力图" not in text
+    assert 'class="pair"' not in text
+
+
+def test_html_attention_missing_placeholder(tmp_path):
+    """开启 attention 但热力图不存在：渲染占位，不抛异常。"""
+    image_path = write_sample_image(tmp_path / "sample_000.jpg")
+    cfg = {**html_cfg(tmp_path), "attention": True}
+
+    text = ReportBuilder().build(make_batch(image_path=image_path), cfg).read_text(encoding="utf-8")
+
+    assert "未生成注意力热力图" in text
+
+
 def test_html_is_supported_format(tmp_path):
     """html 已纳入 SUPPORTED_FORMATS，不再抛「不支持格式」。"""
     output = ReportBuilder().build(make_batch(), html_cfg(tmp_path))

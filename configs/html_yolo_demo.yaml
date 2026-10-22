@@ -36,3 +36,4 @@ report:
   algorithm_name: YOLOv8m
   algorithm_version: 8m-100e-imgsz640
   sample_source: test_picture（NEU-DET 分层抽样，15 张开源样例）
+  attention: true   # 样本卡片并排展示 EigenCAM 注意力热力图（reports/visual/attention_<stem>.jpg）

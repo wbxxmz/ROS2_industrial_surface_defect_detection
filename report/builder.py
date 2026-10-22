@@ -113,9 +113,16 @@ class ReportBuilder:
 
         sample_rows = []
         detail_rows = []
+        attention_enabled = bool(cfg.get("attention", False))
         for item in samples:
             verdict = item["verdict"]
             image_path = item.get("image_path")
+            attention_path = None
+            if attention_enabled and image_path:
+                # 约定：注意力热力图与标注图同目录，命名 attention_<stem>.jpg
+                candidate = Path(str(image_path)).with_name(f"attention_{Path(str(image_path)).stem}.jpg")
+                if candidate.is_file():
+                    attention_path = str(candidate)
             sample_rows.append(
                 {
                     "source": str(item["source"]),
@@ -125,6 +132,7 @@ class ReportBuilder:
                     "total_count": verdict.total_count,
                     "max_severity": severity_label(verdict.max_severity),
                     "image_path": str(image_path) if image_path else None,
+                    "attention_path": attention_path,
                 }
             )
             for det in item["detections"]:
@@ -162,4 +170,5 @@ class ReportBuilder:
             "class_names": [CLASS_MAP[class_id] for class_id in sorted(CLASS_MAP)],
             "samples": sample_rows,
             "details": detail_rows,
+            "attention_enabled": attention_enabled,
         }

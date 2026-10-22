@@ -37,6 +37,8 @@ tr.dim td { color:#9CA3AF; }
 .pass { color:var(--pass); font-weight:600; }
 .fail { color:var(--fail); font-weight:600; }
 .gallery { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+.pair { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.cap { color:var(--muted); font-size:12px; margin-top:6px; text-align:center; }
 .shot { width:100%; border-radius:8px; display:block; background:#EEE; }
 .missing { display:flex; align-items:center; justify-content:center; height:180px; color:var(--muted);
            font-size:13px; border:1px dashed #C9D1DB; background:#EEEEEE; }
@@ -66,13 +68,13 @@ def _data_uri(path) -> "str | None":
         return None
 
 
-def _image_block(path, alt: str) -> str:
-    """图片可用则内嵌 <img>，否则渲染灰底占位块 +「图片缺失」。"""
+def _image_block(path, alt: str, missing_text: str = MISSING_TEXT) -> str:
+    """图片可用则内嵌 <img>，否则渲染灰底占位块 + 缺失文案。"""
     uri = _data_uri(path)
     if uri:
         return f'<img class="shot" src="{uri}" alt="{_escape(alt)}">'
-    logger.warning("标注图缺失或不存在：%s（渲染占位）", path)
-    return f'<div class="shot missing">{MISSING_TEXT}</div>'
+    logger.warning("图片缺失或不存在：%s（渲染占位）", path)
+    return f'<div class="shot missing">{_escape(missing_text)}</div>'
 
 
 def export_html(data: dict, output: Path) -> Path:
@@ -136,8 +138,23 @@ def export_html(data: dict, output: Path) -> Path:
         detail_html = '<tr><td colspan="7">本批次未检出有效缺陷（明细表为空）。</td></tr>'
 
     cards = []
+    attention_enabled = bool(data.get("attention_enabled"))
     for sample in data["samples"]:
-        media = _image_block(sample.get("image_path"), f"{sample['source']} 标注图")
+        annotated = _image_block(sample.get("image_path"), f"{sample['source']} 标注图")
+        if attention_enabled:
+            attention = _image_block(
+                sample.get("attention_path"),
+                f"{sample['source']} 注意力热力图",
+                "未生成注意力热力图",
+            )
+            media = (
+                '<div class="pair">'
+                f'<div>{annotated}<div class="cap">标注图</div></div>'
+                f'<div>{attention}<div class="cap">注意力热力图（EigenCAM）</div></div>'
+                "</div>"
+            )
+        else:
+            media = annotated
         state = "pass" if sample["is_pass"] else "fail"
         cards.append(
             '<div class="card">'

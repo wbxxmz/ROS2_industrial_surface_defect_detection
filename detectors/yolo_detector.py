@@ -141,6 +141,22 @@ class YoloDetector(Detector):
         """
         return None if self._model is None else self._model.model
 
+    @property
+    def inference_model(self):
+        """只读：实际参与 ``predict`` 前向的模型（未 ``load`` 时为 ``None``）。
+
+        ultralytics 的 ``AutoBackend`` 在参数处于 inference tensor 状态时会 deepcopy
+        模型，predictor 之后复用该副本；因此 hook 必须挂到副本上，否则从第二次
+        ``detect()`` 起回调不会触发。首次 ``detect()`` 前 predictor 尚未创建，回退为
+        加载时的模型。
+        """
+        if self._model is None:
+            return None
+        predictor = getattr(self._model, "predictor", None)
+        backend = getattr(predictor, "model", None) if predictor is not None else None
+        inner = getattr(backend, "model", None) if backend is not None else None
+        return inner if hasattr(inner, "model") else self._model.model
+
     def load(self, cfg: dict) -> None:
         """读入 §4.4 参数并加载权重到指定 device；失败抛 ``DetectorLoadError``。"""
         if not isinstance(cfg, dict):
