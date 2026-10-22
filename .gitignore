@@ -44,3 +44,6 @@ visualize_yolo.py
 opencv_pictrue_tests/
 
 # 说明：test_picture/ 为开源样例图，需提交到仓库，故不在此忽略
+
+# 阶段 8 压测素材（本地生成，不入库）
+tests/data/
