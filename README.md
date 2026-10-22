@@ -34,6 +34,15 @@ YOLOv8m 检出 5 处缺陷，其中 1 处判定为重度（S2），整体判定 
 
 数据口径：NEU-DET 验证集样本均为缺陷件，因此"检出率"指至少检出 1 条有效缺陷的比例；耗时仅统计单帧 `detect()` 调用，已排除模型加载与首次预热；30 张为单次分层抽样，结论为方向性参考。完整汇总、判定一致率与逐图明细见 [comparison_report.md](comparison_report.md)，复现命令为 `python3 scripts/compare_algorithms.py --limit 30`。
 
+## 缺陷可视化示例
+
+以 `inclusion_174.jpg` 为例（YOLOv8m 检出 2 条夹杂缺陷）：
+
+| 标注图 | 检测密度热力图 | 模型注意力热力图（EigenCAM） |
+| :---: | :---: | :---: |
+| <img src="docs/images/demo_annotated.jpg" width="220"> | <img src="docs/images/demo_density.jpg" width="220"> | <img src="docs/images/demo_attention.jpg" width="220"> |
+| 边界框与置信度 | 缺陷空间分布密度 | 模型关注区域（不参与判定） |
+
 ## 🏭 工业落地思考
 
 为了追求极致的召回率，本项目最终采用了 **YOLOv8m + 640 分辨率** 的配置。但在真实的工业产线中，如果面临极高的节拍要求，可通过配置化接口无缝降级到 **YOLOv8n/s**，牺牲部分微小缺陷召回率以换取 **40+ FPS** 的极速检测。
