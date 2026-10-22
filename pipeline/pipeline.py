@@ -49,6 +49,8 @@ class Pipeline:
         self._detector = detector
         self._source = source
         self._logger = logging.getLogger("defect.pipeline")
+        # 阶段 7：逐样本记录（source / verdict / detections / image_path），供报告模块消费
+        self.samples: List[dict] = []
 
     def capture(self) -> Optional[Frame]:
         """采集一帧：委托给 InputSource.read()；读尽返回 None。"""
@@ -79,9 +81,20 @@ class Pipeline:
                 return Path(str(value)).stem or "frame"
         return str(input_cfg.get("type") or "frame")
 
-    def _visual_path(self, frame: Frame) -> Path:
-        """标注图落盘路径：reports/visual/{源标识}_frame{帧号:06d}.jpg（§4.4）。"""
-        return VISUAL_OUTPUT_DIR / f"{self._source_label()}_frame{frame.frame_index:06d}.jpg"
+    def _sample_name(self, frame: Frame) -> str:
+        """样本名：图片源取真实文件名主干（如 ``crazing_98``），其余源回退为「源标识_frameN」。
+
+        图片目录批量导入时每张图都是独立的 frame_index，若统一拼 ``源标识_frameN``
+        会出现多张图难以区分的情况，故优先使用输入源暴露的当前文件路径。
+        """
+        current = getattr(self._source, "current_path", None)
+        if current is not None:
+            return Path(str(current)).stem
+        return f"{self._source_label()}_frame{frame.frame_index:06d}"
+
+    def _visual_path(self, sample_name: str) -> Path:
+        """标注图落盘路径：reports/visual/{样本名}.jpg（§4.4）。"""
+        return VISUAL_OUTPUT_DIR / f"{sample_name}.jpg"
 
     def run(self) -> List[Detection]:
         """跑完整条流水线：逐帧采集直到读尽，判定并落盘标注图，返回累计结果列表。"""
@@ -97,7 +110,16 @@ class Pipeline:
                 detections = self.grade(self.postprocess(self.detect(self.preprocess(frame))))
                 results.extend(detections)
                 verdict = judge(detections, judge_cfg)
-                output_path = render_to_file(frame, detections, verdict, str(self._visual_path(frame)))
+                sample_name = self._sample_name(frame)
+                output_path = render_to_file(frame, detections, verdict, str(self._visual_path(sample_name)))
+                self.samples.append(
+                    {
+                        "source": sample_name,
+                        "verdict": verdict,
+                        "detections": detections,
+                        "image_path": str(output_path),
+                    }
+                )
                 self._logger.info(
                     "帧 %d：%s×%s，检测结果 %d 条，is_pass=%s，max_severity=%s，reason=%s，标注图=%s",
                     frame.frame_index,

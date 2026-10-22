@@ -44,6 +44,16 @@ def main(argv=None) -> int:
         pipeline = Pipeline(config, detector, source)
         results = pipeline.run()
         logger.info("运行完成，共 %d 条检测结果", len(results))
+
+        report_cfg = dict(config.get("report") or {})
+        # 明细表「是否计入判定」需要与 judge() 的有效缺陷预筛同口径
+        report_cfg.setdefault("judge", config.get("judge") or {})
+        if report_cfg.get("enabled", True) and pipeline.samples:
+            from report import ReportBuilder  # 阶段 7：按需导入，减少无报告场景的依赖
+
+            report_path = ReportBuilder().build(pipeline.samples, report_cfg)
+            print(f"[报告] {report_path}")
+            logger.info("质检报告已生成：%s", report_path)
         return 0
     except ProjectError as exc:  # 运行错误：契约规定的自定义异常
         print(f"[错误] 运行错误：{exc}", file=sys.stderr)

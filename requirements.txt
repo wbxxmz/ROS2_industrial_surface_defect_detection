@@ -3,3 +3,7 @@ numpy==2.2.6
 opencv-python-headless==5.0.0.93
 PyYAML==5.4.1
 pytest==6.2.5
+# 阶段 7 质检报告（按导出格式按需安装）
+reportlab==3.6.8
+openpyxl==3.1.5
+matplotlib==3.10.9

@@ -14,6 +14,13 @@ detector:
     iou_threshold: 0.45
     device: cuda             # cpu / cuda / cuda:N
     imgsz: 640
+# 阶段 5 §4.2.2 判定参数（与 configs/demo.yaml 保持一致）
+judge:
+  max_count: 0
+  max_area_ratio: 0.01
+  min_confidence: 0.25   # 与 YOLO conf_threshold 之外的判定门槛，避免低置信框直接影响 PASS/FAIL
+  min_area_px: 10
+  max_severity: null
 # 阶段 6 §4.1.3 严重程度分级参数（与 configs/demo.yaml 保持一致）
 severity:
   enabled: true
@@ -23,3 +30,12 @@ severity:
   conf_ceiling: 0.95
   class_bias: {0: 0.0, 1: 0.0, 2: 0.0, 3: 0.0, default: 0.0}
   grade_thresholds: {mild_max: 0.35, severe_min: 0.70}
+# 阶段 7 §5 质检报告（YOLOv8m 版本，用于展示极限召回效果）
+report:
+  enabled: true
+  format: pdf
+  output_path: reports/quality_report_yolo.pdf
+  title: 工业产品表面缺陷质检报告（YOLOv8m）
+  algorithm_name: YOLOv8m
+  algorithm_version: 8m-100e-imgsz640
+  sample_source: test_picture（开源样例缺陷图）

@@ -73,6 +73,17 @@ class ImageSource(InputSource):
             timestamp=0.0,  # 阶段 0 §5.4.4：图片为 0.0
         )
 
+    @property
+    def current_path(self) -> Optional[Path]:
+        """最近一次 ``read()`` 返回的图片路径；未打开或已读尽时为 None。
+
+        阶段 7 需要"真实文件名"作为样本名：``Frame`` 契约为阶段 0 冻结字段，
+        不新增字段，改由输入源暴露当前路径。
+        """
+        if not self._opened or self._cursor == 0:
+            return None
+        return self._paths[self._cursor - 1]
+
     def close(self) -> None:
         """关闭来源；幂等（无外部句柄，仅置标志）。"""
         if self._closed:

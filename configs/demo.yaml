@@ -45,3 +45,12 @@ judge:
   min_confidence: 0.25   # 与 YOLO 检测器 conf_threshold 对齐，避免判定层二次过滤
   min_area_px: 10
   max_severity: null      # null=不启用严重度校验；0/1/2=允许的最高等级（阶段 6 §4.1.5）
+# 阶段 7 §5 质检报告（无头落盘；format: pdf / xlsx；enabled: false 即关闭）
+report:
+  enabled: true
+  format: pdf
+  output_path: reports/quality_report.pdf
+  title: 工业产品表面缺陷质检报告
+  algorithm_name: OpenCV 传统算法
+  algorithm_version: 0.1.0
+  sample_source: test_picture（开源样例缺陷图）
