@@ -73,9 +73,10 @@ def run_algorithm(label: str, config: dict, input_dir: str) -> list[dict]:
                 "name": name,
                 "image_path": image_path,
                 "is_pass": verdict.is_pass,
-                "count": len(sample["detections"]),
+                "total_count": verdict.total_count,  # 计入判定的有效缺陷数
                 "max_severity": verdict.max_severity,
                 "time_ms": elapsed_ms,
+                "warmup": not records,  # 首帧含预热开销，不计入平均耗时（沿用压测脚本口径）
             }
         )
     return records
@@ -83,7 +84,14 @@ def run_algorithm(label: str, config: dict, input_dir: str) -> list[dict]:
 
 def align_samples(opencv_records: list[dict], yolo_records: list[dict]) -> list[dict]:
     """按文件名主干对齐两算法结果；单侧缺失时补空记录并标记不一致。"""
-    empty = {"image_path": None, "is_pass": False, "count": 0, "max_severity": None, "time_ms": 0.0}
+    empty = {
+        "image_path": None,
+        "is_pass": False,
+        "total_count": 0,
+        "max_severity": None,
+        "time_ms": 0.0,
+        "warmup": False,
+    }
     ocv_map = {record["name"]: record for record in opencv_records}
     yolo_map = {record["name"]: record for record in yolo_records}
 
@@ -102,17 +110,25 @@ def align_samples(opencv_records: list[dict], yolo_records: list[dict]) -> list[
     return samples
 
 
+def _steady_times(samples: list[dict], side: str) -> list[float]:
+    """取剔除首帧预热后的单帧耗时（无有效样本时回退为全量）。"""
+    steady = [sample[side]["time_ms"] for sample in samples if not sample[side].get("warmup")]
+    return steady or [sample[side]["time_ms"] for sample in samples]
+
+
 def build_summary(samples: list[dict]) -> dict:
-    """汇总平均耗时、总检出数与判定一致率。"""
-    ocv_times = [sample["opencv"]["time_ms"] for sample in samples]
-    yolo_times = [sample["yolo"]["time_ms"] for sample in samples]
+    """汇总平均 detect 耗时（剔除首帧预热）、总检出数、PASS/FAIL 数与判定一致率。"""
+    ocv_times = _steady_times(samples, "opencv")
+    yolo_times = _steady_times(samples, "yolo")
     same = sum(1 for sample in samples if sample["consistent"])
     total = len(samples)
     return {
         "opencv_avg_ms": statistics.fmean(ocv_times) if ocv_times else 0.0,
         "yolo_avg_ms": statistics.fmean(yolo_times) if yolo_times else 0.0,
-        "opencv_total_count": sum(sample["opencv"]["count"] for sample in samples),
-        "yolo_total_count": sum(sample["yolo"]["count"] for sample in samples),
+        "opencv_total_count": sum(sample["opencv"]["total_count"] for sample in samples),
+        "yolo_total_count": sum(sample["yolo"]["total_count"] for sample in samples),
+        "opencv_pass": sum(1 for sample in samples if sample["opencv"]["is_pass"]),
+        "yolo_pass": sum(1 for sample in samples if sample["yolo"]["is_pass"]),
         "consistency": f"{same}/{total}（{same / total * 100:.1f}%）" if total else "0/0（0.0%）",
     }
 
@@ -147,8 +163,14 @@ def main(argv=None) -> int:
     print("")
     print("=== 汇总 ===")
     print(f"样本数：{len(samples)}")
-    print(f"OpenCV：平均 {summary['opencv_avg_ms']:.2f} ms/帧，总检出 {summary['opencv_total_count']}")
-    print(f"YOLO  ：平均 {summary['yolo_avg_ms']:.2f} ms/帧，总检出 {summary['yolo_total_count']}")
+    print(
+        f"OpenCV：平均 {summary['opencv_avg_ms']:.2f} ms/帧，总检出 {summary['opencv_total_count']}，"
+        f"PASS {summary['opencv_pass']} / FAIL {len(samples) - summary['opencv_pass']}"
+    )
+    print(
+        f"YOLO  ：平均 {summary['yolo_avg_ms']:.2f} ms/帧，总检出 {summary['yolo_total_count']}，"
+        f"PASS {summary['yolo_pass']} / FAIL {len(samples) - summary['yolo_pass']}"
+    )
     print(f"判定一致率：{summary['consistency']}")
     print(f"对比页：{output}")
     return 0

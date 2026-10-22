@@ -15,7 +15,7 @@ def record(name, is_pass=True, count=1, severity=0, time_ms=10.0, image_path=Non
         "name": name,
         "image_path": image_path,
         "is_pass": is_pass,
-        "count": count,
+        "total_count": count,
         "max_severity": severity,
         "time_ms": time_ms,
     }
@@ -58,20 +58,41 @@ def test_align_samples_by_stem():
     assert samples[1]["consistent"] is True
     assert samples[0]["consistent"] is False  # 仅 OpenCV 侧存在
     assert samples[2]["consistent"] is False
-    assert samples[0]["yolo"]["count"] == 0
+    assert samples[0]["yolo"]["total_count"] == 0
 
 
 def test_build_summary():
     """汇总口径：平均耗时取两侧各自均值，一致率按样本计。"""
     samples = [
         {"consistent": True, "opencv": record("a", time_ms=10), "yolo": record("a", time_ms=20)},
-        {"consistent": False, "opencv": record("b", time_ms=30), "yolo": record("b", time_ms=40)},
+        {"consistent": False, "opencv": record("b", is_pass=False, time_ms=30), "yolo": record("b", is_pass=False, time_ms=40)},
     ]
     summary = build_summary(samples)
 
     assert summary["opencv_avg_ms"] == 20
     assert summary["yolo_avg_ms"] == 30
+    assert summary["opencv_pass"] == 1  # 两张样本中仅 a 为 PASS
+    assert summary["yolo_pass"] == 1
+    assert summary["opencv_total_count"] == 2
+    assert summary["yolo_total_count"] == 2
     assert summary["consistency"] == "1/2（50.0%）"
+
+
+def test_build_summary_excludes_warmup():
+    """首帧预热不计入平均 detect 耗时。"""
+    warm = record("a", time_ms=100.0)
+    warm["warmup"] = True
+    warm_yolo = record("a", time_ms=200.0)
+    warm_yolo["warmup"] = True
+    samples = [
+        {"consistent": True, "opencv": warm, "yolo": warm_yolo},
+        {"consistent": True, "opencv": record("b", time_ms=10.0), "yolo": record("b", time_ms=20.0)},
+    ]
+
+    summary = build_summary(samples)
+
+    assert summary["opencv_avg_ms"] == 10.0
+    assert summary["yolo_avg_ms"] == 20.0
 
 
 def test_export_comparison_html(tmp_path):
@@ -87,6 +108,8 @@ def test_export_comparison_html(tmp_path):
     assert "data:image/jpeg;base64," in text
     assert 'src="http://' not in text and 'src="https://' not in text
     assert "判定一致率" in text and "1/2（50.0%）" in text
+    assert "<th>PASS</th>" in text and "<th>FAIL</th>" in text
+    assert "平均 detect 耗时" in text
 
 
 def test_export_comparison_html_missing_image(tmp_path):

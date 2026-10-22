@@ -49,9 +49,10 @@ def _side_block(title: str, record: dict) -> str:
         f"<h3>{_escape(title)}</h3>"
         f'{_image_block(record.get("image_path"), f"{title} 标注图")}'
         f'<div class="kv" style="margin-top:10px;">判定：<b class="{state}">{result}</b></div>'
-        f'<div class="kv">检出数<b>{_escape(record.get("count", 0))}</b></div>'
+        f'<div class="kv">检出数<b>{_escape(record.get("total_count", 0))}</b></div>'
         f'<div class="kv">最高严重度<b>{_escape(_fmt_severity(record.get("max_severity")))}</b></div>'
-        f'<div class="kv">单帧耗时<b>{float(record.get("time_ms", 0.0)):.2f} ms</b></div>'
+        f'<div class="kv">单帧耗时<b>{float(record.get("time_ms", 0.0)):.2f} ms'
+        f'{"（预热）" if record.get("warmup") else ""}</b></div>'
         "</div>"
     )
 
@@ -64,26 +65,22 @@ def export_comparison_html(data: dict, output: Path) -> Path:
     summary = data["summary"]
     samples = data["samples"]
 
-    summary_rows = "".join(
-        "<tr>"
-        f"<td>{_escape(row['algorithm'])}</td>"
-        f"<td>{float(row['avg_ms']):.2f} ms</td>"
-        f"<td>{_escape(row['total_count'])}</td>"
-        f"<td>{_escape(summary['consistency'])}</td>"
-        "</tr>"
-        for row in (
-            {
-                "algorithm": "OpenCV 传统算法",
-                "avg_ms": summary["opencv_avg_ms"],
-                "total_count": summary["opencv_total_count"],
-            },
-            {
-                "algorithm": "YOLO",
-                "avg_ms": summary["yolo_avg_ms"],
-                "total_count": summary["yolo_total_count"],
-            },
+    summary_rows = []
+    for algorithm, avg_ms, total_count, pass_count in (
+        ("OpenCV 传统算法", summary["opencv_avg_ms"], summary["opencv_total_count"], summary["opencv_pass"]),
+        ("YOLO", summary["yolo_avg_ms"], summary["yolo_total_count"], summary["yolo_pass"]),
+    ):
+        fail_count = len(samples) - pass_count
+        summary_rows.append(
+            "<tr>"
+            f"<td>{_escape(algorithm)}</td>"
+            f"<td>{float(avg_ms):.2f} ms</td>"
+            f"<td>{_escape(total_count)}</td>"
+            f'<td class="pass">{_escape(pass_count)}</td>'
+            f'<td class="fail">{_escape(fail_count)}</td>'
+            "</tr>"
         )
-    )
+    summary_rows = "".join(summary_rows)
 
     cards = []
     for sample in samples:
@@ -112,10 +109,13 @@ def export_comparison_html(data: dict, output: Path) -> Path:
         f'<div class="sub">生成时间：{_escape(data["generated_at"])} ｜ '
         f'样本来源：{_escape(data["input_dir"])} ｜ 样本数：{len(samples)}</div>\n'
         '<div class="card"><h2>一、汇总</h2>'
-        "<table><thead><tr><th>算法</th><th>平均耗时</th><th>总检出数</th>"
-        f"<th>判定一致率</th></tr></thead><tbody>{summary_rows}</tbody></table>"
-        f'<div class="note">判定一致率 = 两算法 is_pass 相同的样本数 / 样本总数；'
-        f"耗时为单帧 detect() 调用（含首帧预热）。</div></div>\n"
+        "<table><thead><tr><th>算法</th><th>平均 detect 耗时</th><th>总检出数</th>"
+        "<th>PASS</th><th>FAIL</th></tr></thead>"
+        f'<tbody>{summary_rows}</tbody>'
+        f'<tfoot><tr><th colspan="5">判定一致率：{_escape(summary["consistency"])}</th></tr></tfoot>'
+        "</table>"
+        '<div class="note">判定一致率 = 两算法 is_pass 相同的样本数 / 样本总数；'
+        "平均耗时为单帧 detect() 调用，已剔除各算法首帧预热（模型加载不计入），样本卡片仍显示原始单帧耗时。</div></div>\n"
         f'<div class="card"><h2>二、逐样本对比（{len(samples)} 张）</h2>'
         '<div class="note" style="margin-bottom:14px;">左栏 OpenCV，右栏 YOLO；'
         "标注图已 base64 内嵌，断网可看。</div>"

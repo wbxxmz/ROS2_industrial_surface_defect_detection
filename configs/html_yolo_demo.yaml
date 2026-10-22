@@ -1,0 +1,38 @@
+# V1.1 扩展 01 示例配置：YOLOv8m + HTML 交互式报告
+# 与 yolo_demo.yaml 的差异只有 report 段：格式改为 html、输出为单文件自包含报告
+input:
+  type: image
+  dir: test_picture
+detector:
+  type: yolo
+  params:
+    model_path: best.pt      # NEU-DET 微调权重；不存在则 load 抛 DetectorLoadError
+    conf_threshold: 0.10
+    iou_threshold: 0.45
+    device: cuda             # cpu / cuda / cuda:N
+    imgsz: 640
+# 阶段 5 §4.2.2 判定参数（与 configs/demo.yaml 保持一致）
+judge:
+  max_count: 0
+  max_area_ratio: 0.01
+  min_confidence: 0.25   # 低于此值的原始检出不计入判定（报告中标灰）
+  min_area_px: 10
+  max_severity: null
+# 阶段 6 §4.1.3 严重程度分级参数（与 configs/demo.yaml 保持一致）
+severity:
+  enabled: true
+  weights: {area: 0.6, confidence: 0.25}
+  area_ratio_ref: {0: 0.02, 1: 0.01, 2: 0.03, 3: 0.01, default: 0.02}
+  conf_floor: 0.25
+  conf_ceiling: 0.95
+  class_bias: {0: 0.0, 1: 0.0, 2: 0.0, 3: 0.0, default: 0.0}
+  grade_thresholds: {mild_max: 0.35, severe_min: 0.70}
+# 阶段 7 §5 质检报告 —— V1.1 扩展 01：HTML 单文件（YOLOv8m）
+report:
+  enabled: true
+  format: html
+  output_path: reports/quality_report_yolo.html
+  title: 工业产品表面缺陷质检报告（YOLOv8m）
+  algorithm_name: YOLOv8m
+  algorithm_version: 8m-100e-imgsz640
+  sample_source: test_picture（NEU-DET 分层抽样，15 张开源样例）
