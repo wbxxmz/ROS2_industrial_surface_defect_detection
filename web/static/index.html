@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工业表面缺陷检测 · Web 演示</title>
+<style>
+:root { --bg:#F5F7FA; --card:#FFFFFF; --line:#DCE3EC; --ink:#1F2937; --muted:#6B7280; --pass:#1F9D55; --fail:#D64541; --accent:#2563EB; }
+* { box-sizing:border-box; }
+body { margin:0; padding:32px; background:var(--bg); color:var(--ink);
+       font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
+.wrap { max-width:1080px; margin:0 auto; }
+h1 { font-size:24px; margin:0 0 6px; }
+.sub { color:var(--muted); font-size:13px; margin-bottom:22px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:20px 22px; margin-bottom:18px; }
+.drop { border:2px dashed #C9D1DB; border-radius:10px; padding:44px 20px; text-align:center;
+        color:var(--muted); cursor:pointer; transition:.15s; background:#FAFBFC; }
+.drop.over { border-color:var(--accent); background:#EEF4FF; color:var(--accent); }
+.drop strong { color:var(--ink); }
+.btn { display:inline-block; border:1px solid var(--line); background:#F8FAFC; color:var(--ink);
+       border-radius:8px; padding:8px 16px; font-size:13px; cursor:pointer; text-decoration:none; margin-right:8px; }
+.btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+.btn:disabled { opacity:.45; cursor:not-allowed; }
+.status { font-size:13px; color:var(--muted); margin-top:12px; min-height:18px; }
+.badge { display:inline-block; padding:4px 14px; border-radius:999px; color:#fff; font-weight:700; font-size:14px; }
+.badge.pass { background:var(--pass); }
+.badge.fail { background:var(--fail); }
+.media { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.media figure { margin:0; }
+.media img { width:100%; border-radius:8px; background:#EEE; display:block; }
+.media figcaption { color:var(--muted); font-size:12px; text-align:center; margin-top:6px; }
+.meta { color:var(--muted); font-size:13px; line-height:1.9; margin-top:14px; }
+table { width:100%; border-collapse:collapse; font-size:13px; margin-top:14px; }
+th,td { border-bottom:1px solid var(--line); padding:8px 10px; text-align:left; }
+th { background:#F2F4F7; font-weight:600; }
+.hidden { display:none; }
+@media (max-width:760px) { .media { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>工业表面缺陷检测 · Web 演示</h1>
+  <div class="sub">拖拽一张图片到下方区域，服务端完成「检测 → 分级 → 判定 → 标注」，并即时返回结果。</div>
+
+  <div class="card">
+    <div class="drop" id="drop">
+      <strong>拖拽图片到这里</strong><br>
+      或点击选择文件（.jpg / .jpeg / .png / .bmp，≤ 10 MB）
+    </div>
+    <input type="file" id="file" accept=".jpg,.jpeg,.png,.bmp" class="hidden">
+    <div class="status" id="status">等待上传…</div>
+  </div>
+
+  <div class="card hidden" id="result">
+    <div style="margin-bottom:14px;">
+      <span class="badge" id="badge">PASS</span>
+      <span class="meta" id="reason" style="margin-left:10px;"></span>
+    </div>
+    <div class="media">
+      <figure><img id="annotated" alt="标注图"><figcaption>标注图（边界框与置信度）</figcaption></figure>
+      <figure id="attention-figure"><img id="attention" alt="注意力热力图"><figcaption>注意力热力图（EigenCAM，不参与判定）</figcaption></figure>
+    </div>
+    <div class="meta" id="summary"></div>
+    <table id="detail-table">
+      <thead><tr><th>类别</th><th>位置 (x, y, w, h)</th><th>面积占比</th><th>置信度</th><th>严重度</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div style="margin-top:16px;">
+      <a class="btn" id="report-html" href="#" download>下载 HTML 报告</a>
+      <a class="btn" id="report-pdf" href="#" download>下载 PDF 报告</a>
+    </div>
+  </div>
+</div>
+
+<script>
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('file');
+const statusEl = document.getElementById('status');
+const resultEl = document.getElementById('result');
+
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', (e) => {
+  e.preventDefault(); drop.classList.remove('over');
+  if (e.dataTransfer.files.length) upload(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) upload(fileInput.files[0]);
+});
+
+async function upload(file) {
+  statusEl.textContent = '处理中…（首次请求会加载模型）';
+  const body = new FormData();
+  body.append('file', file);
+  try {
+    const resp = await fetch('/api/detect', { method: 'POST', body });
+    const data = await resp.json();
+    if (!resp.ok) { statusEl.textContent = `失败：${data.detail || data.error}`; return; }
+    render(data);
+    statusEl.textContent = `完成：${data.source}，检出 ${data.total_count} 条有效缺陷`;
+  } catch (err) {
+    statusEl.textContent = `请求异常：${err}`;
+  }
+}
+
+function render(data) {
+  resultEl.classList.remove('hidden');
+  const badge = document.getElementById('badge');
+  badge.textContent = data.result;
+  badge.className = `badge ${data.is_pass ? 'pass' : 'fail'}`;
+  document.getElementById('reason').textContent = data.reason;
+
+  document.getElementById('annotated').src = data.annotated_url;
+  const figure = document.getElementById('attention-figure');
+  if (data.attention_url) {
+    figure.classList.remove('hidden');
+    document.getElementById('attention').src = data.attention_url;
+  } else {
+    figure.classList.add('hidden');
+  }
+
+  document.getElementById('summary').textContent =
+    `有效缺陷：${data.total_count} 条　最高严重度：${data.max_severity ?? '—'}　` +
+    `图片尺寸：${data.image_size.width}×${data.image_size.height}`;
+
+  const tbody = document.querySelector('#detail-table tbody');
+  tbody.innerHTML = '';
+  const severityLabel = (s) => (s === null || s === undefined) ? '未分级' : ['轻度', '中度', '重度'][s];
+  for (const det of data.detections) {
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${det.class_name}</td><td>(${det.bbox.join(', ')})</td>` +
+      `<td>${(det.area_ratio * 100).toFixed(2)}%</td><td>${det.confidence.toFixed(2)}</td>` +
+      `<td>${severityLabel(det.severity)}</td>`;
+    tbody.appendChild(row);
+  }
+  if (!data.detections.length) {
+    tbody.innerHTML = '<tr><td colspan="5">本张图片未检出缺陷。</td></tr>';
+  }
+
+  document.getElementById('report-html').href = data.report_urls.html;
+  document.getElementById('report-pdf').href = data.report_urls.pdf;
+}
+</script>
+</body>
+</html>

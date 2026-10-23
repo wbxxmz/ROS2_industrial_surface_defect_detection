@@ -2,10 +2,16 @@
 numpy==2.2.6
 opencv-python-headless==5.0.0.93
 PyYAML==5.4.1
-pytest==6.2.5
+pytest==8.3.5
 # 阶段 7 质检报告（按导出格式按需安装）
 reportlab==3.6.8
 openpyxl==3.1.5
 matplotlib==3.10.9
 # 阶段 8 压测（峰值内存采集）
 psutil==5.9.0
+# V1.2 Web 演示服务（扩展 03）
+fastapi==0.161.1
+uvicorn==0.54.0
+python-multipart==0.0.32
+# Web 单元测试依赖（fastapi.testclient 基于 httpx）
+httpx==0.28.1
