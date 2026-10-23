@@ -129,9 +129,18 @@ function render(data) {
   const severityLabel = (s) => (s === null || s === undefined) ? '未分级' : ['轻度', '中度', '重度'][s];
   for (const det of data.detections) {
     const row = document.createElement('tr');
-    row.innerHTML = `<td>${det.class_name}</td><td>(${det.bbox.join(', ')})</td>` +
-      `<td>${(det.area_ratio * 100).toFixed(2)}%</td><td>${det.confidence.toFixed(2)}</td>` +
-      `<td>${severityLabel(det.severity)}</td>`;
+    const cells = [
+      det.class_name,
+      `(${det.bbox.join(', ')})`,
+      `${(det.area_ratio * 100).toFixed(2)}%`,
+      det.confidence.toFixed(2),
+      severityLabel(det.severity),
+    ];
+    for (const value of cells) {
+      const td = document.createElement('td');
+      td.textContent = String(value);
+      row.appendChild(td);
+    }
     tbody.appendChild(row);
   }
   if (!data.detections.length) {
