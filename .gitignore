@@ -45,5 +45,8 @@ opencv_pictrue_tests/
 
 # 说明：test_picture/ 为开源样例图，需提交到仓库，故不在此忽略
 
+# 彩色样本（本地采集/下载，含许可证不确定的外部图片，不入库）
+samples_color/
+
 # 阶段 8 压测素材（本地生成，不入库）
 tests/data/
