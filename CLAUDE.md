@@ -13,11 +13,11 @@ Python 工业产品表面缺陷检测平台，用于求职作品与答辩演示�
 
 ## 2. 硬约束（改动前必读）
 
-- **契约不可破坏**：`Detection`（`class_id` / `class_name` / `bbox` 像素 `(x, y, w, h)` / `area_px` / `area_ratio` / `confidence` / `mask` / `severity`）、`Frame`、`Verdict`、`Detector` 抽象基类、`InputSource`，定义在 `core/types.py`。
+- **契约不可破坏**：`Detection`（`class_id` / `class_name` / `bbox` 像素 `(x, y, w, h)` / `area_px` / `area_ratio` / `confidence` / `mask` / `severity`）、`Frame`、`Verdict`、`Detector` 抽象基类、`InputSource`；`Detection` / `Frame` 在 `core/types.py`，`Verdict` 在 `core/verdict.py`，`Detector` / `InputSource` 在 `core/detector.py` / `core/input_source.py`。
 - **类别映射固定**：`scratch:0` / `dent:1` / `stain:2` / `notch:3`（NEU-DET 6 类合并为 4 类），后续所有模块复用，不得另建映射。
 - **阈值全部走 `load(cfg)` / YAML**，禁止在代码里硬编码新阈值；新增参数必须同步写进 `configs/`。
 - **无头**：不引入 PyQt 等 GUI，只落盘。
-- **异常语义固定**：`ValueError`、`DetectorLoadError`、`DetectorInferenceError`、`SourceOpenError`、`ProjectError`、`OSError`。Web 错误体统一 `{"error": "...", "detail": "..."}`，禁止返回 traceback。
+- **异常语义固定**：`ValueError`、`DetectorLoadError`、`DetectorInferenceError`、`SourceOpenError`、`InputSourceError`、`ProjectError`、`OSError`。Web 错误体统一 `{"error": "...", "detail": "..."}`，禁止返回 traceback。
 - `Detection.severity` 只能是 `0/1/2` 或 `None`；可视化文字只用英文（中文会被 cv2 画成乱码）。
 - 空帧 / 零尺寸输入 → 抛 `ValueError` 或返回空列表；面积 < 10px 的轮廓忽略；OpenCV 检测器丢弃 bbox 面积 > 全图 15% 的结果（YOLO 不适用）。
 - **不得为了让验收好看而调阈值或伪造数据**。实测与预期不符时，如实报告并说明原因。
@@ -36,8 +36,9 @@ Python 工业产品表面缺陷检测平台，用于求职作品与答辩演示�
 | `web/` | FastAPI：`app.py`（工厂 + 异常映射）、`routes.py`、`static/index.html` |
 | `scripts/` | `benchmark.py`、`compare_html.py` |
 | `configs/` | 4 份配置，见下节 |
-| `tests/` | 13 个测试文件，全量约 252 条 |
+| `tests/` | 测试用例 |
 | `docs/` | 实现文档、需求扩展、模型对比、演示脚本、README 配图 |
+| `run_demo.sh` | 一键演示脚本（自检依赖 → 批处理） |
 
 ## 4. 常用命令
 
@@ -58,7 +59,7 @@ python3 scripts/compare_html.py
 uvicorn web.app:create_app --factory --host 127.0.0.1 --port 8000
 DEFECT_WEB_CONFIG=configs/html_demo.yaml uvicorn web.app:create_app --factory   # 换 OpenCV
 
-# 测试（基线：约 251 passed, 1 skipped）
+# 测试
 python3 -m pytest -q
 ```
 
@@ -73,18 +74,7 @@ python3 -m pytest -q
 | `configs/html_demo.yaml` | OpenCV | `quality_report.html` |
 | `configs/html_yolo_demo.yaml` | YOLOv8m + `attention: true` | `quality_report_yolo.html` |
 
-判定/分级参数：`max_count`、`max_area_ratio`、`min_confidence`、`min_area_px`、`max_severity`、`severity.enabled`。`demo.yaml` 的 `min_confidence` 当前为 `0.45`。
-
-## 6. 当前进度（截至 2026-10-24）
-
-- 已发布：`v1.0.0`（双算法平台）、`v1.1.0`（HTML 报告 / 密度热力图 / EigenCAM / 对比页三栏 / README 示例）、`v1.2.0`（Web 演示服务）。
-- 最新提交：`932c702 test(v1.2): 补充 Web 失败路径、500 映射与并发懒加载用例`。
-- **未提交改动**：`.gitignore`（新增 `samples_color/`）、`docs/演示脚本.md`（新建）、本文件。
-- 待办：
-  1. 彩色图片验证：环境无外网（443 握手超时），等用户把图放进 `samples_color/` 后跑双算法；
-  2. 扩展计划总表里的 V1.3（分布仪表盘）、V1.5（级联检测器）未开工；
-  3. `v1.1.0` 标签说明文案与最初指令不一致，未用 `-f` 覆盖，等用户确认；
-  4. 根目录遗留的临时脚本 `test_density_heatmap.py`、`test_eigencam.py` 已入库，属清理候选（未经确认不要删）。
+判定/分级参数：`max_count`、`max_area_ratio`、`min_confidence`、`min_area_px`、`max_severity`、`severity.enabled`。
 
 ## 7. 协作习惯（务必遵守）
 
@@ -104,7 +94,7 @@ python3 -m pytest -q
 - **彩色图**：`stain` 置信度 = Lab 色距 / 441，普通彩色污渍约 0.2，被 `min_confidence=0.45` 过滤；调低阈值可检出，但同时会增加误检。
 - **YOLO 泛化**：只在 NEU-DET 域内可靠；任意网图属域外输入，输出无意义。
 - **Web 测试**：`TestClient` 退出 `lifespan` 会 `release()` 并把 `app.state.detector` 置回 `None`，断言必须写在 `with` 块内。
-- **目录输入**：目录源 `read()` 失败会卡在同一游标，批量场景要逐文件处理才能跳过坏图。
+- **目录输入**：目录源 `read()` 失败会卡在同一游标，批量场景要逐文件处理才能跳过坏图。(已复现)
 - **HTML**：所有字段先 `html.escape()`；图片缺失渲染灰底占位；必须 base64 内嵌，保证断网可开。
 
 ## 9. 新增功能标准流程
