@@ -26,7 +26,7 @@ Python 工业产品表面缺陷检测平台，用于求职作品与答辩演示�
 
 | 路径 | 职责 |
 | --- | --- |
-| `core/types.py` | 全部契约 dataclass |
+| `core/types.py` | `Frame` / `Detection` 等契约 dataclass（`Verdict` 在 `core/verdict.py`） |
 | `inputs/` | 图片/目录/视频/相机输入源 |
 | `detectors/` | `opencv_detector.py`、`yolo_detector.py`、`dummy_detector.py` |
 | `pipeline/pipeline.py` | 主流水线：detect → grade → judge → visualize → report |
