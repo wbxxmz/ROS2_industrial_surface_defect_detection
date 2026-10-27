@@ -390,10 +390,29 @@ class OpencvDetector(Detector):
         contour = max(contours, key=cv2.contourArea)
         if cv2.contourArea(contour) <= 0:
             return []
-        hull = cv2.convexHull(contour, returnPoints=False)
+        # 轮廓在凸包顶点处出现重复坐标时（贴边 / 形态学缝合所致），
+        # cv2.convexHull(returnPoints=False) 会返回非单调的索引序列，cv2.convexityDefects 直接报错。
+        # 保序去重只去掉重复顶点：相邻重复（连续两点坐标相同，如 A-A-B）去重后面积/外接框不变；
+        # 非相邻重复（"裂缝"型，如 A-B-A-C）去重会改变多边形面积，几何语义因此不等价。
+        # 因此去重后的轮廓 **仅作凸包/缺陷的索引基准**：周长、面积、外接框仍按原轮廓计算；
+        # 三角形 mask 取去重后轮廓上对应点位的坐标（与原轮廓同一坐标值，只是索引位移）。
+        # 几何语义以原轮廓为准，避免影响既有帧的分数。
+        indexed = self._dedupe_contour(contour)
+        if len(indexed) < 3:
+            return []
+        hull = cv2.convexHull(indexed, returnPoints=False)
         if hull is None or len(hull) < 3:
             return []
-        defects = cv2.convexityDefects(contour, hull)
+        try:
+            defects = cv2.convexityDefects(indexed, hull)
+        except cv2.error as exc:  # 兜底：去重后仍病态的轮廓跳过，不整帧抛 DetectorInferenceError
+            self._logger.debug(
+                "缺口链路跳过异常轮廓：点数 %d，面积 %.1f，%s",
+                len(contour),
+                float(cv2.contourArea(contour)),
+                exc,
+            )
+            return []
         if defects is None:
             return []
         perimeter = float(cv2.arcLength(contour, True))
@@ -402,6 +421,7 @@ class OpencvDetector(Detector):
         diameter = perimeter / np.pi  # 等效直径作归一化分母，避免除零
 
         candidates: List[_Candidate] = []
+        points = indexed.reshape(-1, 2)  # 缺陷索引以去重后的轮廓为基准，按坐标取点，避免索引错位
         for row in defects.reshape(-1, 4):
             start, end, far, depth_raw = int(row[0]), int(row[1]), int(row[2]), float(row[3])
             ratio = (depth_raw / 256.0) / diameter
@@ -409,13 +429,20 @@ class OpencvDetector(Detector):
                 continue
             # 缺口区域 = 凸包边与缺陷点围成的三角形
             triangle = np.array(
-                [contour[start][0], contour[end][0], contour[far][0]], dtype=np.int32
+                [points[start], points[end], points[far]], dtype=np.int32
             ).reshape(-1, 1, 2)
             mask = self._mask_of(triangle, gray.shape)
             if not mask.any():
                 continue
             candidates.append(_Candidate(3, triangle, ratio, mask))
         return candidates
+
+    @staticmethod
+    def _dedupe_contour(contour: np.ndarray) -> np.ndarray:
+        """保序去重轮廓顶点：保留首次出现的点，返回 int32 的 (N,1,2) 轮廓。"""
+        points = contour.reshape(-1, 2).astype(np.int32, copy=False)
+        _, first_index = np.unique(points, axis=0, return_index=True)
+        return np.ascontiguousarray(points[np.sort(first_index)].reshape(-1, 1, 2))
 
     # ---------- 掩码（§4.3）----------
 
