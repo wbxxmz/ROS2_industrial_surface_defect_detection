@@ -17,22 +17,24 @@ YOLOv8m 检出 5 处缺陷，其中 1 处判定为重度（S2），整体判定 
 
 ## 📊 双算法基线对比 (Benchmark)
 
-在 NEU-DET 验证集的 **30 张真实工业缺陷样本**（按缺陷类别分层抽样，每类 5 张）上，用同一套判定规则（`judge.min_confidence=0.25`、`max_count=0`、`max_area_ratio=0.01`）分别运行两种检测器：
+在 NEU-DET 验证集上，用同一套判定规则（`judge.min_confidence=0.25`、`max_count=0`、`max_area_ratio=0.01`）分别运行两种检测器。**检出率一行改用全量 360 张 val**（2026-10-27 实测，产物 `reports/image_level_val360.md` / `.csv`）；耗时一行仍为 30 张分层抽样旧口径，未重测：
 
 | 指标 | OpenCV 传统算法 | YOLOv8m (best.pt) | 双算法并集 |
 | --- | --- | --- | --- |
-| 检出率（至少检出 1 条有效缺陷） | 40.0%（12/30） | **100.0%（30/30）** | **100.0%（30/30）** |
+| 图像级检出率（全量 360 张 val，至少检出 1 条有效缺陷） | 37.8%（136/360） | **99.4%（358/360）** | —（并集未在产物中汇总，可由 CSV 交叉统计） |
 | mAP50（360 张验证集） | — | **0.7693** | — |
 | 平均单帧耗时 | **3.7 ms**（CPU） | 15.0 ms（GPU，中位 15.3 ms） | — |
 | 典型误检倾向 | 复杂纹理易产生伪候选 | 低置信度下偶有重叠大框 | 两类漏检互相补齐 |
 
-**结论**：最终采用 **YOLOv8m + 640 分辨率**，在 30 张验证样本上检出率达到 **100%**，mAP50 为 **0.7693**，且已验证 **YOLO 完全覆盖了 OpenCV 的漏检**（`OpenCV FAIL → YOLO PASS` 为 0）。OpenCV 仍以毫秒级速度承担高速初筛，YOLO 负责把漏检补齐。
+**图像级检出率 99.4%（358/360，全量 val）；框级 Recall 0.701 / mAP50 0.77。** 口径说明：NEU-DET val 360 张均为缺陷件（`model.val()` 日志：`360 images, 0 backgrounds`），「整图至少检出 1 条」这一指标接近饱和，单看它没有区分度——区分度在框级 Recall / mAP（见 `docs/模型对比/YOLOv8_三模型对比.md`）。
+
+**结论**：最终采用 **YOLOv8m + 640 分辨率**，图像级检出率 **99.4%（358/360，全量 val）**，框级 Recall 0.701 / mAP50 0.77。全量 360 张上，OpenCV 的 224 张漏检全部被 YOLO 检出（224/224，两算法同时漏检 0 张），另有 2 例反向——OpenCV 检出而 YOLO 未达判定门槛（`crazing_19.jpg`、`rolled-in_scale_217.jpg`，见 `reports/image_level_val360.csv`）；30 张子集上「`OpenCV FAIL → YOLO PASS` 为 0」属取样巧合，已作废。OpenCV 仍以毫秒级速度承担高速初筛，YOLO 负责把漏检补齐。
 
 ### 工程权衡（Trade-off）
 
-为了达到 **100% 的极限召回率**，本项目把置信度阈值下调到 `0.10`，代价是同一张图会输出部分互相重叠的大框（例如 `test_picture/crazing_98.jpg` 上出现 5 个 scratch 框）。在真实工业场景中，可以调高阈值并配合更严格的 NMS 策略（提高 `iou_threshold` 的严格程度、按类别做重叠抑制）来减少冗余框；如果产线节拍优先，也可以直接降级到 YOLOv8n/s，用部分微小缺陷的召回换取更快的 CPU 推理速度。
+为了最大化召回（全量 360 张口径图像级 99.4%），本项目把置信度阈值下调到 `0.10`，代价是同一张图会输出部分互相重叠的大框（例如 `test_picture/crazing_98.jpg` 上出现 5 个 scratch 框）。在真实工业场景中，可以调高阈值并配合更严格的 NMS 策略（提高 `iou_threshold` 的严格程度、按类别做重叠抑制）来减少冗余框；如果产线节拍优先，也可以直接降级到 YOLOv8n/s，用部分微小缺陷的召回换取更快的 CPU 推理速度。
 
-数据口径：NEU-DET 验证集样本均为缺陷件，因此"检出率"指至少检出 1 条有效缺陷的比例；耗时仅统计单帧 `detect()` 调用，已排除模型加载与首次预热；30 张为单次分层抽样，结论为方向性参考。完整汇总、判定一致率与逐图明细见 [comparison_report.md](comparison_report.md)，复现命令为 `python3 scripts/compare_algorithms.py --limit 30`。
+数据口径：NEU-DET val 360 张均为缺陷件（0 background），因此「图像级检出率」指至少检出 1 条有效缺陷的比例——该指标接近饱和，单看没有区分度，区分度看框级 Recall / mAP。逐图明细与汇总见 `reports/image_level_val360.md` / `reports/image_level_val360.csv`，复现命令 `python3 scripts/eval_image_level.py --algo both`；旧的 30 张分层抽样检出率口径已作废（`comparison_report.md` 仅作历史记录保留）。耗时仅统计单帧 `detect()` 调用，已排除模型加载与首次预热。
 
 ## 缺陷可视化示例
 
