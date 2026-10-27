@@ -76,7 +76,7 @@ python3 -m pytest -q
 
 判定/分级参数：`max_count`、`max_area_ratio`、`min_confidence`、`min_area_px`、`max_severity`、`severity.enabled`。
 
-## 7. 协作习惯（务必遵守）
+## 6. 协作习惯（务必遵守）
 
 - 全程中文回复；代码标识符、commit message 用英文。
 - **先计划、后动手**：涉及新增模块或改动契约时，先在 `docs/需求扩展/` 写轻量文档（固定四块：目标 / 契约影响 / 核心方案 / 验收标准），确认后再写代码。
@@ -88,7 +88,7 @@ python3 -m pytest -q
 - **报告纪律**：说清“做了什么 / 没做什么 / 已知限制”；负面结果（漏检、效果不明显、无法下载）照实说。
 - 临时脚本、调试图不要放在仓库根目录；中间产物放 `reports/` 或 `/tmp`。
 
-## 8. 已知坑位
+## 7. 已知坑位
 
 - **EigenCAM**：ultralytics 在推理时会 `deepcopy` 模型，hook 必须挂在 `inference_model` 上，且要 `try/finally` 移除；默认目标层是 backbone stage-4 C2f（idx 6，40×40），不要换回 SPPF（idx 9）。
 - **灰度图**：`test_picture/` 15 张全是纯灰度（S=0），`stain` 分支永不触发，这是数据问题不是链路问题。
@@ -102,7 +102,7 @@ python3 -m pytest -q
   已入库；`visualize.py`、`visualize_yolo.py` 已被 `.gitignore` 忽略。
 - **samples_color/**：本地彩色样本目录，已在 `.gitignore:49` 忽略，不入库、不参与演示产物。
 
-## 9. 新增功能标准流程
+## 8. 新增功能标准流程
 
 1. 只读核对现状（代码 + 配置 + 测试）；
 2. 写/更新 `docs/需求扩展/` 文档并等确认；
