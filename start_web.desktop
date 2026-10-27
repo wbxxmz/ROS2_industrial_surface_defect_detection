@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=缺陷检测服务（拖图使用）
+Name[en]=Defect Detection Server
+Comment=启动本地检测服务并打开浏览器，拖入图片即可检测
+# 用 %k 取本文件自身 URI，再切到项目根目录执行 start_web.sh；避免写死绝对路径。
+# 按 desktop 规范，Exec 内参数用双引号包裹，且 " $ \ 需转义（写成 \\" \\$ \\\\）才能通过 desktop-file-validate。
+Exec=sh -c "p=\\"\\${1#file://}\\"; cd \\"\\$(dirname \\"\\$p\\")\\" && exec ./start_web.sh" sh %k
+Terminal=true
+Icon=utilities-terminal
+Categories=Utility;
+StartupNotify=false

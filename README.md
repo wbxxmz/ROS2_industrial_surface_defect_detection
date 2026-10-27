@@ -81,7 +81,7 @@ pip install torch ultralytics        # 有 CUDA 时按官网选择对应 cu126 �
 bash run_demo.sh
 ```
 
-## 三种运行方式
+## 运行方式
 
 ### 1）一键启动（推荐）
 
@@ -117,6 +117,23 @@ python3 scripts/benchmark.py --config configs/yolo_demo.yaml \
 ```
 
 > 压测素材 `tests/data/` 为本地生成、不入库（见 `.gitignore`）。可自行准备任意图片目录；脚本对损坏图片与空目录均做了异常隔离，不会中断整批。
+
+### 5）Web 界面（拖图检测）
+
+不需要记命令，双击即可：
+
+```bash
+./start_web.sh               # 启动服务并自动打开浏览器；Ctrl+C 停止
+./start_web.sh --no-browser  # 只启动服务（远程 / 无桌面环境）
+```
+
+或在文件管理器里双击 `start_web.desktop`（部分发行版首次需右键「允许运行」）。
+
+- **自动选算法**：检测到 `best.pt` 且已安装 `ultralytics` → YOLO 路线（`configs/html_yolo_demo.yaml`）；否则回退 OpenCV（`configs/html_demo.yaml`，纯 CPU），并打印回退原因。也可用 `DEFECT_WEB_CONFIG=configs/demo.yaml ./start_web.sh` 手动指定。
+- **端口自动避让**：8000 被占用时顺延 8001 / 8002；刚停止后重启会复用原端口。
+- **页面操作**：拖入 `.jpg / .jpeg / .png / .bmp`（单文件 ≤ 10 MB）→ 返回 PASS/FAIL、标注图、缺陷明细，并可下载 HTML / PDF 报告。
+- **服务日志**：`reports/web/server.log`。
+- **依赖提示**：`pip install -r requirements.txt` 只装 Web/OpenCV 所需依赖；YOLO 路线还需 `pip install torch ultralytics`（见上文安装步骤第 3 步）。
 
 ## 模型权重获取方式
 
@@ -172,7 +189,9 @@ ROS2_industrial_surface_defect_detection/
 ├─ docs/            # 各阶段实现文档
 ├─ reports/         # 产物目录（报告与标注图，不入库）
 ├─ utils/           # 日志、配置加载、自定义异常
-├─ run_demo.sh      # 一键启动脚本
+├─ run_demo.sh      # 一键启动脚本（批处理报告）
+├─ start_web.sh     # 一键启动 Web 服务（双击可用，自动开浏览器）
+├─ start_web.desktop # 桌面快捷方式（双击执行 start_web.sh）
 ├─ main.py          # 程序入口
 └─ requirements.txt # Python 依赖清单
 ```
@@ -199,7 +218,7 @@ ROS2_industrial_surface_defect_detection/
 
 ## 当前进度
 
-阶段 0–9 全部完成：接口契约冻结、输入源、OpenCV/YOLO 双检测器、判定与严重度分级、无头可视化、PDF/Excel 质检报告、双算法对比、批量压测与性能基线、一键部署交付。
+阶段 0–9 全部完成：接口契约冻结、输入源、OpenCV/YOLO 双检测器、判定与严重度分级、无头可视化、PDF/Excel 质检报告、双算法对比、批量压测与性能基线、一键部署交付。V1.2.1 补 Web 双击启动（`start_web.sh` / `start_web.desktop`）；当前进入工程化部署阶段（容器化、CI、可观测性、安全边界、易用性），路线见 `docs/需求扩展/扩展计划总表.md` §六。
 
 ## License
 

@@ -39,6 +39,7 @@ Python 工业产品表面缺陷检测平台。**当前阶段：工程化部署�
 | `tests/` | 测试用例 |
 | `docs/` | 实现文档、需求扩展、模型对比、演示脚本、README 配图、`进度日志.md`（跨对话状态存档） |
 | `run_demo.sh` | 一键演示脚本（自检依赖 → 批处理） |
+| `start_web.sh` | Web 双击启动（自检 → 自动选 YOLO/OpenCV 配置 → 端口避让 → 开浏览器）；`start_web.desktop` 为同名桌面快捷方式 |
 
 ## 4. 常用命令
 
@@ -54,6 +55,11 @@ python3 main.py --config configs/html_yolo_demo.yaml   # YOLO HTML + 注意力�
 
 # 双算法三栏对比页
 python3 scripts/compare_html.py
+
+# Web 双击启动（自检 → 选配置 → 起服务 → 开浏览器；Ctrl+C 停止）
+./start_web.sh                  # 有 best.pt + ultralytics 走 YOLO，否则回退 OpenCV
+./start_web.sh --no-browser     # 无桌面环境时只起服务
+DEFECT_WEB_CONFIG=configs/html_demo.yaml ./start_web.sh   # 强制指定配置
 
 # Web 演示（模型懒加载，默认跑 YOLO）
 uvicorn web.app:create_app --factory --host 127.0.0.1 --port 8000
