@@ -34,7 +34,7 @@ Python 工业产品表面缺陷检测平台，用于求职作品与答辩演示�
 | `report/` | `builder.py` + `exporters/`（pdf / xlsx / html / comparison_html） |
 | `visualization/` | 标注图、密度热力图、EigenCAM 注意力图 |
 | `web/` | FastAPI：`app.py`（工厂 + 异常映射）、`routes.py`、`static/index.html` |
-| `scripts/` | `benchmark.py`、`compare_html.py` |
+| `scripts/` | `benchmark.py`、`compare_algorithms.py`、`compare_html.py` |
 | `configs/` | 4 份配置，见下节 |
 | `tests/` | 测试用例 |
 | `docs/` | 实现文档、需求扩展、模型对比、演示脚本、README 配图 |
@@ -98,6 +98,9 @@ python3 -m pytest -q
 - **目录输入**：目录源 `read()` 失败会卡在同一游标，批量场景要逐文件处理才能跳过坏图。(已复现)
 - **HTML**：所有字段先 `html.escape()`；图片缺失渲染灰底占位；必须 base64 内嵌，保证断网可开。
 - **历史文档是快照**：`docs/实现文档/阶段N_*.md` 里的目录树/结构记录的是当时状态，不随代码变化回改。例：阶段 1 文档仍列 `ui/`（该包已在 860643b 删除），属正常，不要为“看起来一致”去改历史文档。
+- **根目录脚本**：`train_yolo.py`、`test_density_heatmap.py`、`test_eigencam.py`
+  已入库；`visualize.py`、`visualize_yolo.py` 已被 `.gitignore` 忽略。
+- **samples_color/**：本地彩色样本目录，已在 `.gitignore:49` 忽略，不入库、不参与演示产物。
 
 ## 9. 新增功能标准流程
 
